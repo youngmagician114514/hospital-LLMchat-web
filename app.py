@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -69,12 +69,22 @@ def _float_env(name: str, default: float) -> float:
 class Settings:
     model_provider: str = os.getenv("MODEL_PROVIDER", "stub").strip()
 
-    # OpenAI-compatible gateway mode
+    # Generic OpenAI-compatible provider config
     openai_api_base: str = os.getenv("OPENAI_API_BASE", "").strip()
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 
-    # Local HF model mode
+    # vLLM decoupled config (recommended for production)
+    vllm_api_base: str = os.getenv("VLLM_API_BASE", "http://127.0.0.1:8001/v1").strip()
+    vllm_api_key: str = os.getenv("VLLM_API_KEY", "").strip()
+    vllm_model: str = os.getenv("VLLM_MODEL", "qwen2.5-7b-instruct").strip()
+
+    # Shared inference params for OpenAI-compatible backends
+    generation_temperature: float = _float_env("GENERATION_TEMPERATURE", 0.2)
+    generation_top_p: float = _float_env("GENERATION_TOP_P", 0.9)
+    generation_max_tokens: int = _int_env("GENERATION_MAX_TOKENS", 512)
+
+    # Local HF model mode (optional fallback)
     local_model_path: str = os.getenv("LOCAL_MODEL_PATH", "").strip()
     local_model_dtype: str = os.getenv("LOCAL_MODEL_DTYPE", "bfloat16").strip().lower()
     local_model_device_map: str = os.getenv("LOCAL_MODEL_DEVICE_MAP", "auto").strip()
@@ -85,7 +95,7 @@ class Settings:
     local_model_max_parallel: int = _int_env("LOCAL_MODEL_MAX_PARALLEL", 1)
 
     # Runtime
-    request_timeout_seconds: int = _int_env("REQUEST_TIMEOUT_SECONDS", 60)
+    request_timeout_seconds: int = _int_env("REQUEST_TIMEOUT_SECONDS", 120)
     max_concurrent_model_calls: int = _int_env("MAX_CONCURRENT_MODEL_CALLS", 200)
     max_history_messages: int = _int_env("MAX_HISTORY_MESSAGES", 20)
     session_ttl_seconds: int = _int_env("SESSION_TTL_SECONDS", 3600)
@@ -198,18 +208,26 @@ class OpenAICompatibleProvider:
         api_key: str,
         model: str,
         timeout_seconds: int,
+        temperature: float,
+        top_p: float,
+        max_tokens: int,
     ) -> None:
         self.model_name = model
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout = timeout_seconds
+        self._temperature = temperature
+        self._top_p = top_p
+        self._max_tokens = max_tokens
 
     async def generate(self, messages: list[ChatMessage]) -> str:
         endpoint = f"{self._base_url}/chat/completions"
         payload = {
             "model": self.model_name,
             "messages": [_model_to_dict(msg) for msg in messages],
-            "temperature": 0.2,
+            "temperature": self._temperature,
+            "top_p": self._top_p,
+            "max_tokens": self._max_tokens,
         }
         headers = {"Content-Type": "application/json"}
         if self._api_key:
@@ -386,8 +404,45 @@ def _build_system_prompt() -> str:
     return prompt
 
 
+def _build_openai_compat_provider(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    provider_name: str,
+) -> LLMProvider:
+    if not base_url:
+        raise RuntimeError(f"{provider_name} base url is empty")
+    logger.info("Using %s provider: model=%s base=%s", provider_name, model, base_url)
+    return OpenAICompatibleProvider(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=settings.request_timeout_seconds,
+        temperature=settings.generation_temperature,
+        top_p=settings.generation_top_p,
+        max_tokens=settings.generation_max_tokens,
+    )
+
+
 def build_provider() -> LLMProvider:
     provider = settings.model_provider.lower().strip()
+
+    if provider in {"vllm", "vllm_openai"}:
+        return _build_openai_compat_provider(
+            base_url=settings.vllm_api_base,
+            api_key=settings.vllm_api_key,
+            model=settings.vllm_model,
+            provider_name="vLLM(OpenAI-compatible)",
+        )
+
+    if provider == "openai_compat":
+        return _build_openai_compat_provider(
+            base_url=settings.openai_api_base,
+            api_key=settings.openai_api_key,
+            model=settings.openai_model,
+            provider_name="openai_compat",
+        )
 
     if provider in {"hf_local", "transformers_local", "local_transformers"}:
         if not settings.local_model_path:
@@ -401,18 +456,6 @@ def build_provider() -> LLMProvider:
             top_p=settings.local_model_top_p,
             repetition_penalty=settings.local_model_repetition_penalty,
             max_parallel=settings.local_model_max_parallel,
-        )
-
-    if provider == "openai_compat":
-        if not settings.openai_api_base:
-            logger.warning("MODEL_PROVIDER=openai_compat but OPENAI_API_BASE is empty, fallback to stub")
-            return StubLLMProvider()
-        logger.info("Using OpenAI-compatible provider: %s", settings.openai_model)
-        return OpenAICompatibleProvider(
-            base_url=settings.openai_api_base,
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
-            timeout_seconds=settings.request_timeout_seconds,
         )
 
     logger.info("Using stub provider, reply will be fixed string 'test'")
@@ -492,7 +535,7 @@ service = ChatService(
     max_history_messages=settings.max_history_messages,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.2.0")
+app = FastAPI(title="Hospital Intranet Chat System", version="0.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -508,7 +551,7 @@ _cleanup_task: asyncio.Task | None = None
 
 
 @app.middleware("http")
-async def _disable_static_cache(request, call_next):
+async def _disable_static_cache(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
     if path == "/" or path.startswith("/static/"):
