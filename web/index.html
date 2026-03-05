@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>颈椎病辅疗对话系统</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260304_1">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">Hospital Chat</div>
+        <button type="button" id="newChatBtn" class="new-chat-btn">+ 新建对话</button>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="status-card">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">正在检查服务...</span>
+        </div>
+        <div class="side-note">医院内网原型，当前模型占位回复为 test</div>
+      </div>
+    </aside>
+
+    <section class="main-panel">
+      <header class="chat-header">
+        <div>
+          <h1>颈椎病辅疗对话系统</h1>
+          <p>请输入主诉、病史、查体、影像学、舌脉等信息</p>
+        </div>
+        <div class="model-chip" id="modelChip">模型：-</div>
+      </header>
+
+      <main id="chatLog" class="chat-log"></main>
+
+      <form id="chatForm" class="input-shell">
+        <textarea
+          id="messageInput"
+          rows="1"
+          placeholder="请输入病例，进行颈椎病辅助分析..."
+          required
+        ></textarea>
+        <div class="actions">
+          <button type="button" id="clearBtn" class="ghost">清空</button>
+          <button type="submit" id="sendBtn">发送</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <script src="/static/app.js?v=20260304_1"></script>
+</body>
+</html>
