@@ -7,20 +7,23 @@ const newChatBtn = document.getElementById("newChatBtn");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const modelChip = document.getElementById("modelChip");
+const promptBtn = document.getElementById("promptBtn");
+const closePromptBtn = document.getElementById("closePromptBtn");
+const promptPanel = document.getElementById("promptPanel");
+const promptText = document.getElementById("promptText");
 
 let sessionId = localStorage.getItem("hospital_chat_session_id");
 let localHistory = [];
 let isRequesting = false;
 
 function generateSessionId() {
-  const c = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
-  if (c && typeof c.getRandomValues === "function") {
+  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
     try {
-      const buf = new Uint8Array(16);
-      c.getRandomValues(buf);
-      return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
-    } catch (_) {
-    }
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    } catch (_) {}
   }
   return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 14)}`;
 }
@@ -32,7 +35,7 @@ if (!sessionId) {
 
 function resizeInput() {
   messageInput.style.height = "auto";
-  messageInput.style.height = `${Math.min(messageInput.scrollHeight, 180)}px`;
+  messageInput.style.height = `${Math.min(messageInput.scrollHeight, 220)}px`;
 }
 
 function scrollToBottom() {
@@ -47,10 +50,10 @@ function setBusyState(busy) {
 }
 
 async function copyToClipboard(text, button) {
-  let ok = false;
+  let copied = false;
   try {
     await navigator.clipboard.writeText(text);
-    ok = true;
+    copied = true;
   } catch (_) {
     const ta = document.createElement("textarea");
     ta.value = text;
@@ -60,33 +63,33 @@ async function copyToClipboard(text, button) {
     ta.focus();
     ta.select();
     try {
-      ok = document.execCommand("copy");
-    } catch (err) {
-      ok = false;
+      copied = document.execCommand("copy");
+    } catch (_) {
+      copied = false;
     }
     document.body.removeChild(ta);
   }
 
   if (button) {
-    const old = button.textContent;
-    button.textContent = ok ? "已复制" : "复制失败";
+    const oldText = button.textContent;
+    button.textContent = copied ? "已复制" : "复制失败";
     setTimeout(() => {
-      button.textContent = old;
+      button.textContent = oldText;
     }, 1200);
   }
 }
 
 function appendInlineRichText(target, text) {
-  const parts = text.split(/(`[^`]+`)/g);
-  for (const part of parts) {
-    if (!part) continue;
-    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
-      const inlineCode = document.createElement("code");
-      inlineCode.className = "inline-code";
-      inlineCode.textContent = part.slice(1, -1);
-      target.appendChild(inlineCode);
+  const segments = text.split(/(`[^`]+`)/g);
+  for (const segment of segments) {
+    if (!segment) continue;
+    if (segment.startsWith("`") && segment.endsWith("`") && segment.length >= 2) {
+      const code = document.createElement("code");
+      code.className = "inline-code";
+      code.textContent = segment.slice(1, -1);
+      target.appendChild(code);
     } else {
-      target.appendChild(document.createTextNode(part));
+      target.appendChild(document.createTextNode(segment));
     }
   }
 }
@@ -135,6 +138,7 @@ function appendCodeBlock(container, language, codeText) {
 }
 
 function renderAssistantContent(target, text) {
+  target.innerHTML = "";
   const source = `${text || ""}`;
   const codeRegex = /```([a-zA-Z0-9_-]+)?\n?([\s\S]*?)```/g;
   let lastIndex = 0;
@@ -171,18 +175,13 @@ function buildToolbar(messageText, options = {}) {
     regenBtn.textContent = "重新生成";
     regenBtn.addEventListener("click", async () => {
       if (isRequesting) return;
-      await requestReply(
-        options.userText,
-        options.requestHistory,
-        {
-          appendUserMessage: false,
-          thinkingText: "正在重新生成回答..."
-        }
-      );
+      await streamReply(options.userText, options.requestHistory, {
+        appendUserMessage: false,
+        thinkingText: "正在重新生成..."
+      });
     });
     toolbar.appendChild(regenBtn);
   }
-
   return toolbar;
 }
 
@@ -218,41 +217,49 @@ function appendMessage(role, text, meta = "", options = {}) {
   scrollToBottom();
 }
 
-function appendLoading(thinkingText = "正在思考中") {
+function createStreamingAssistantCard(thinkingText) {
   const row = document.createElement("div");
   row.className = "message-row assistant";
-  row.id = "loadingRow";
 
   const card = document.createElement("div");
-  card.className = "message-card typing-card";
+  card.className = "message-card";
 
-  const typing = document.createElement("div");
-  typing.className = "typing-line";
+  const body = document.createElement("div");
+  body.className = "message-body is-streaming";
+  body.textContent = thinkingText;
+  card.appendChild(body);
 
-  const text = document.createElement("span");
-  text.textContent = thinkingText;
+  const metaDiv = document.createElement("div");
+  metaDiv.className = "meta";
+  card.appendChild(metaDiv);
 
-  const cursor = document.createElement("span");
-  cursor.className = "typing-cursor";
-  cursor.textContent = "|";
-
-  const dots = document.createElement("span");
-  dots.className = "typing-dots";
-  dots.textContent = "...";
-
-  typing.appendChild(text);
-  typing.appendChild(cursor);
-  typing.appendChild(dots);
-  card.appendChild(typing);
   row.appendChild(card);
-
   chatLog.appendChild(row);
   scrollToBottom();
-}
 
-function clearLoading() {
-  const node = document.getElementById("loadingRow");
-  if (node) node.remove();
+  let accumulated = "";
+  return {
+    push(delta) {
+      accumulated += delta;
+      renderAssistantContent(body, accumulated);
+      body.classList.add("is-streaming");
+      scrollToBottom();
+    },
+    finalize(finalText, metaText, options) {
+      body.classList.remove("is-streaming");
+      renderAssistantContent(body, finalText);
+      metaDiv.textContent = metaText || "";
+      card.appendChild(buildToolbar(finalText, options));
+      scrollToBottom();
+    },
+    fail(errorText) {
+      row.className = "message-row error";
+      body.classList.remove("is-streaming");
+      body.textContent = errorText;
+      metaDiv.textContent = "";
+      scrollToBottom();
+    }
+  };
 }
 
 function resetSessionState() {
@@ -270,7 +277,7 @@ async function refreshHealth() {
     statusDot.classList.add("ok");
     statusText.textContent = `在线 - 并发上限 ${data.max_concurrent_model_calls}`;
     modelChip.textContent = `模型：${data.provider}`;
-  } catch (err) {
+  } catch (_) {
     statusDot.classList.remove("ok");
     statusDot.classList.add("err");
     statusText.textContent = "离线";
@@ -278,18 +285,36 @@ async function refreshHealth() {
   }
 }
 
-async function requestReply(userText, historySnapshot, options = {}) {
+function parseSsePayloads(rawChunk) {
+  const events = [];
+  const blocks = rawChunk.split("\n\n");
+  for (const block of blocks) {
+    if (!block.trim()) continue;
+    const lines = block.split("\n");
+    let dataLine = "";
+    for (const line of lines) {
+      if (line.startsWith("data:")) {
+        dataLine += line.slice(5).trim();
+      }
+    }
+    if (!dataLine) continue;
+    try {
+      events.push(JSON.parse(dataLine));
+    } catch (_) {}
+  }
+  return events;
+}
+
+async function streamReply(userText, historySnapshot, options = {}) {
   const appendUserMessage = options.appendUserMessage !== false;
-  const thinkingText = options.thinkingText || "正在思考中";
+  const thinkingText = options.thinkingText || "正在思考中...";
 
   setBusyState(true);
-  if (appendUserMessage) {
-    appendMessage("user", userText);
-  }
-  appendLoading(thinkingText);
+  if (appendUserMessage) appendMessage("user", userText);
+  const streamCard = createStreamingAssistantCard(thinkingText);
 
   try {
-    const res = await fetch("/api/chat", {
+    const res = await fetch("/api/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -300,30 +325,55 @@ async function requestReply(userText, historySnapshot, options = {}) {
       })
     });
 
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       let detail = `HTTP ${res.status}`;
       try {
         const payload = await res.json();
         detail = payload.detail || detail;
-      } catch (_) {
-      }
+      } catch (_) {}
       throw new Error(detail);
     }
 
-    const data = await res.json();
-    sessionId = data.session_id;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let doneEvent = null;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() || "";
+
+      for (const chunk of chunks) {
+        const events = parseSsePayloads(`${chunk}\n\n`);
+        for (const event of events) {
+          if (event.type === "token") {
+            if (event.delta) streamCard.push(event.delta);
+          } else if (event.type === "done") {
+            doneEvent = event;
+          } else if (event.type === "error") {
+            throw new Error(event.detail || "流式生成失败");
+          }
+        }
+      }
+    }
+
+    if (!doneEvent) throw new Error("流式返回中断");
+
+    sessionId = doneEvent.session_id;
     localStorage.setItem("hospital_chat_session_id", sessionId);
-    localHistory = data.history;
-    clearLoading();
-    appendMessage(
-      "assistant",
-      data.reply,
-      `${data.model} - ${data.latency_ms}ms`,
+    localHistory = doneEvent.history || [];
+
+    streamCard.finalize(
+      doneEvent.reply,
+      `${doneEvent.model} - ${doneEvent.latency_ms}ms`,
       { userText, requestHistory: historySnapshot }
     );
   } catch (err) {
-    clearLoading();
-    appendMessage("error", `请求失败：${err.message}`);
+    streamCard.fail(`请求失败：${err.message}`);
   } finally {
     setBusyState(false);
     messageInput.focus();
@@ -338,7 +388,7 @@ async function sendMessage() {
   const historySnapshot = [...localHistory];
   messageInput.value = "";
   resizeInput();
-  await requestReply(text, historySnapshot, { appendUserMessage: true });
+  await streamReply(text, historySnapshot, { appendUserMessage: true });
 }
 
 async function clearServerSession() {
@@ -348,8 +398,7 @@ async function clearServerSession() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sessionId })
     });
-  } catch (_) {
-  }
+  } catch (_) {}
 }
 
 async function startNewChat() {
@@ -357,7 +406,7 @@ async function startNewChat() {
   await clearServerSession();
   resetSessionState();
   chatLog.innerHTML = "";
-  appendMessage("assistant", "新会话已创建，请输入病例信息。");
+  appendMessage("assistant", "新会话已创建。");
 }
 
 async function clearCurrentChat() {
@@ -365,7 +414,24 @@ async function clearCurrentChat() {
   await clearServerSession();
   localHistory = [];
   chatLog.innerHTML = "";
-  appendMessage("assistant", "会话记录已清空。");
+  appendMessage("assistant", "会话已清空。");
+}
+
+async function loadPrompt() {
+  try {
+    const res = await fetch("/api/prompt");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    promptText.textContent = `${data.system_prompt}\n\n固定输出格式：\n${data.required_output_format}`;
+    promptPanel.classList.remove("hidden");
+  } catch (err) {
+    promptText.textContent = `提示词加载失败：${err.message}`;
+    promptPanel.classList.remove("hidden");
+  }
+}
+
+function closePromptPanel() {
+  promptPanel.classList.add("hidden");
 }
 
 chatForm.addEventListener("submit", async (event) => {
@@ -383,11 +449,10 @@ messageInput.addEventListener("keydown", async (event) => {
 
 clearBtn.addEventListener("click", clearCurrentChat);
 newChatBtn.addEventListener("click", startNewChat);
+promptBtn.addEventListener("click", loadPrompt);
+closePromptBtn.addEventListener("click", closePromptPanel);
 
-appendMessage(
-  "assistant",
-  "系统已就绪。你可以输入病例信息，我会按“西医诊断、主证、兼证、方药”结构给出建议。"
-);
+appendMessage("assistant", "系统已就绪。");
 resizeInput();
 refreshHealth();
 setInterval(refreshHealth, 20000);

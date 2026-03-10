@@ -1,124 +1,81 @@
 # 医院内网对话系统（颈椎病辅疗）
 
-当前已支持三种模型接入方式：
-- `vllm_openai`（推荐）：应用服务通过 HTTP 调用 vLLM，彻底解耦大模型进程
-- `openai_compat`：调用任意 OpenAI 兼容网关
-- `hf_local`：应用进程内直接加载 HuggingFace 模型（仅作为备用）
+当前支持两种模型接入方式：
+- `vllm_openai`：通过 OpenAI 兼容协议调用 vLLM（推荐内网部署）
+- `openai_compat`：通过 OpenAI 兼容协议调用外部模型网关（如阿里云百炼）
 
-## 1. 为什么用 vLLM 解耦
+## 1. workers 在 vLLM 解耦下的作用
 
-`vLLM` 作为独立模型服务，应用层只负责业务逻辑与对话接口：
-- 应用服务崩溃不会直接拖垮模型进程
-- 模型服务可单独扩缩容与调优
-- 更适合后续做多应用共享同一模型网关
+`uvicorn --workers N` 控制的是应用服务进程数，不是 vLLM 的工作进程数。
 
-当前默认配置已经切到 `MODEL_PROVIDER=vllm_openai`。
+在 vLLM 解耦架构下：
+- 应用层 worker 负责 HTTP 接入、会话管理、请求转发
+- 模型吞吐主要由 vLLM 端调度和显存配置决定
+- 增加应用 worker 能提升连接处理能力，但不会线性提升模型生成速度
 
-## 2. 启动顺序（推荐）
+建议：
+- 先 `--workers 1` 验证稳定性
+- 再按 CPU 与并发压测逐步提升到 `2~4`
 
-先启动 vLLM，再启动本项目。
+## 2. 外部 API（百炼）配置
 
-### 2.1 安装应用依赖
+编辑 `.env`：
 
-```bash
-cd hospital_chat_system
-pip install -r requirements.txt
+```env
+MODEL_PROVIDER=openai_compat
+OPENAI_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
+OPENAI_API_KEY=your-dashscope-api-key
+OPENAI_MODEL=qwen-plus
 ```
 
-### 2.2 安装 vLLM 依赖（Linux + CUDA）
-
-```bash
-pip install -r requirements.vllm.txt
-```
-
-### 2.3 启动 vLLM 服务
-
-脚本：
-
-```bash
-bash scripts/start_vllm_server.sh
-```
-
-如果出现类似报错：
-`Free memory ... is less than desired GPU memory utilization`
-请降低显存利用率或上下文长度，例如：
-
-```bash
-export VLLM_GPU_MEMORY_UTILIZATION=0.85
-export VLLM_MAX_MODEL_LEN=4096
-bash scripts/start_vllm_server.sh
-```
-
-若仍不稳定，可再加：
-
-```bash
-export VLLM_ENFORCE_EAGER=1
-bash scripts/start_vllm_server.sh
-```
-
-等价命令（示例）：
-
-```bash
-python -m vllm.entrypoints.openai.api_server \
-  --host 0.0.0.0 \
-  --port 8001 \
-  --model /home/lwb/Decoding/mydecoding/mydecoding/base_model/qwen/Qwen2___5-7B-Instruct \
-  --served-model-name qwen2.5-7b-instruct \
-  --tensor-parallel-size 1 \
-  --gpu-memory-utilization 0.9 \
-  --max-model-len 8192 \
-  --dtype bfloat16
-```
-
-### 2.4 启动应用服务
+启动：
 
 ```bash
 python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 ```
 
-访问：
-- `http://服务器IP:8000`
+## 3. vLLM 解耦配置
 
-## 3. workers 参数建议
-
-`uvicorn --workers N` 是应用进程数，不是 vLLM 的并发线程数。
-
-在 vLLM 解耦模式下：
-- 可以按 CPU 和业务并发需求增加应用 worker
-- 但建议先从 `--workers 1` 起步，确认稳定后再逐步增大
-
-在 `hf_local` 模式下：
-- 每个 worker 都会加载一份模型，显存会叠加
-- 通常只能 `--workers 1`
-
-## 4. 关键环境变量
-
-`.env` 默认值已可直接用于 vLLM 解耦模式：
+编辑 `.env`：
 
 ```env
 MODEL_PROVIDER=vllm_openai
 VLLM_API_BASE=http://127.0.0.1:8001/v1
 VLLM_API_KEY=EMPTY
 VLLM_MODEL=qwen2.5-7b-instruct
-
-GENERATION_TEMPERATURE=0.2
-GENERATION_TOP_P=0.9
-GENERATION_MAX_TOKENS=512
 ```
 
-## 5. 已提供接口
+先启动 vLLM：
+
+```bash
+bash scripts/start_vllm_server.sh
+```
+
+再启动应用：
+
+```bash
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+## 4. 输出格式约束
+
+系统会强制输出为以下固定结构：
+
+```text
+西医诊断：
+主证：
+兼证：
+方药：
+理由：
+```
+
+即使模型返回不规范文本，后端也会自动归一化为该格式。
+
+## 5. API 接口
 
 - `GET /api/health`
-- `POST /api/chat`
+- `GET /api/prompt`（展示系统提示词）
+- `POST /api/chat`（普通请求）
+- `POST /api/chat/stream`（SSE 流式输出）
 - `POST /api/session/reset`
 
-`/api/chat` 请求示例：
-
-```json
-{
-  "session_id": "abc123",
-  "message": "患者颈痛1年，左上肢麻木1周",
-  "history": [],
-  "use_server_history": false
-}
-```

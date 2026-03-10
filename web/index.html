@@ -3,50 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>颈椎病辅疗对话系统</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260304_1">
+  <title>问诊对话</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260310_1">
+  <link rel="stylesheet" href="/static/chat.css?v=20260310_10">
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
+  <div class="chat-shell">
+    <aside class="left-sidebar">
       <div class="sidebar-top">
-        <div class="brand">Hospital Chat</div>
-        <button type="button" id="newChatBtn" class="new-chat-btn">+ 新建对话</button>
-      </div>
-      <div class="sidebar-bottom">
-        <div class="status-card">
-          <span id="statusDot" class="status-dot"></span>
-          <span id="statusText">正在检查服务...</span>
+        <div class="logo-row">
+          <div class="logo-square" aria-hidden="true">V</div>
         </div>
-        <div class="side-note">医院内网原型，当前模型占位回复为 test</div>
+
+        <button type="button" id="newChatBtn" class="side-new-chat">
+          <span class="plus-circle">+</span>
+          <span>新建会话</span>
+        </button>
+
+        <nav class="side-menu" aria-label="功能菜单">
+          <a class="menu-item active" href="/diagnosis">结构化问诊</a>
+        </nav>
       </div>
+
+      <div class="sidebar-bottom">医院内网问诊系统</div>
     </aside>
 
-    <section class="main-panel">
-      <header class="chat-header">
-        <div>
-          <h1>颈椎病辅疗对话系统</h1>
-          <p>请输入主诉、病史、查体、影像学、舌脉等信息</p>
-        </div>
-        <div class="model-chip" id="modelChip">模型：-</div>
-      </header>
+    <section class="main-stage">
+      <main id="chatMain" class="chat-main is-empty">
+        <section id="hero" class="hero">
+          <h1>颈椎病智能辅助诊疗系统</h1>
+        </section>
+        <section id="chatLog" class="chat-log"></section>
+      </main>
 
-      <main id="chatLog" class="chat-log"></main>
-
-      <form id="chatForm" class="input-shell">
-        <textarea
-          id="messageInput"
-          rows="1"
-          placeholder="请输入病例，进行颈椎病辅助分析..."
-          required
-        ></textarea>
-        <div class="actions">
-          <button type="button" id="clearBtn" class="ghost">清空</button>
-          <button type="submit" id="sendBtn">发送</button>
-        </div>
-      </form>
+      <footer class="input-dock">
+        <form id="chatForm" class="composer">
+          <textarea id="messageInput" rows="1" placeholder="尽管问..." required></textarea>
+          <div class="composer-tools">
+            <div class="left-tools">
+              <button type="button" id="quickNewChatBtn" class="circle-btn" title="新建对话">+</button>
+            </div>
+            <div class="right-tools">
+              <span id="modelChip" class="model-chip model-inline-chip">模型：-</span>
+              <button type="submit" id="sendBtn" class="send-btn" title="发送">
+                <span>↑</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </footer>
     </section>
   </div>
-  <script src="/static/app.js?v=20260304_1"></script>
+  <script src="/static/chat.js?v=20260310_10"></script>
 </body>
 </html>

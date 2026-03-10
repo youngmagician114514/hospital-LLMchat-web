@@ -4,16 +4,17 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, AsyncIterator, Callable, Literal, Protocol
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,10 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("hospital-chat")
+
+
+OUTPUT_LABELS = ("西医诊断", "主证", "兼证", "方药", "理由")
+OUTPUT_TEMPLATE = "西医诊断：\n主证：\n兼证：\n方药：\n理由："
 
 
 def _load_dotenv_if_exists() -> None:
@@ -74,7 +79,7 @@ class Settings:
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 
-    # vLLM decoupled config (recommended for production)
+    # vLLM decoupled config
     vllm_api_base: str = os.getenv("VLLM_API_BASE", "http://127.0.0.1:8001/v1").strip()
     vllm_api_key: str = os.getenv("VLLM_API_KEY", "").strip()
     vllm_model: str = os.getenv("VLLM_MODEL", "qwen2.5-7b-instruct").strip()
@@ -83,16 +88,6 @@ class Settings:
     generation_temperature: float = _float_env("GENERATION_TEMPERATURE", 0.2)
     generation_top_p: float = _float_env("GENERATION_TOP_P", 0.9)
     generation_max_tokens: int = _int_env("GENERATION_MAX_TOKENS", 512)
-
-    # Local HF model mode (optional fallback)
-    local_model_path: str = os.getenv("LOCAL_MODEL_PATH", "").strip()
-    local_model_dtype: str = os.getenv("LOCAL_MODEL_DTYPE", "bfloat16").strip().lower()
-    local_model_device_map: str = os.getenv("LOCAL_MODEL_DEVICE_MAP", "auto").strip()
-    local_model_max_new_tokens: int = _int_env("LOCAL_MODEL_MAX_NEW_TOKENS", 512)
-    local_model_temperature: float = _float_env("LOCAL_MODEL_TEMPERATURE", 0.2)
-    local_model_top_p: float = _float_env("LOCAL_MODEL_TOP_P", 0.9)
-    local_model_repetition_penalty: float = _float_env("LOCAL_MODEL_REPETITION_PENALTY", 1.05)
-    local_model_max_parallel: int = _int_env("LOCAL_MODEL_MAX_PARALLEL", 1)
 
     # Runtime
     request_timeout_seconds: int = _int_env("REQUEST_TIMEOUT_SECONDS", 120)
@@ -136,10 +131,56 @@ class HealthResponse(BaseModel):
     max_concurrent_model_calls: int
 
 
+class PromptResponse(BaseModel):
+    system_prompt: str
+    required_output_format: str
+
+
 def _model_to_dict(model: BaseModel) -> dict:
     if hasattr(model, "model_dump"):
         return model.model_dump()
     return model.dict()
+
+
+def _extract_field(raw: str, label: str, next_label: str | None) -> str:
+    if next_label is None:
+        pattern = rf"{re.escape(label)}[：:]\s*(.*)\s*$"
+    else:
+        pattern = rf"{re.escape(label)}[：:]\s*(.*?)\s*(?={re.escape(next_label)}[：:])"
+    match = re.search(pattern, raw, flags=re.DOTALL)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _normalize_output_format(raw_text: str) -> str:
+    raw = (raw_text or "").strip()
+    extracted: dict[str, str] = {}
+    for idx, label in enumerate(OUTPUT_LABELS):
+        next_label = OUTPUT_LABELS[idx + 1] if idx + 1 < len(OUTPUT_LABELS) else None
+        extracted[label] = _extract_field(raw, label, next_label)
+
+    has_structured = any(extracted.values())
+    if not has_structured:
+        extracted = {
+            "西医诊断": "未明确",
+            "主证": "未明确",
+            "兼证": "未明确",
+            "方药": "未明确",
+            "理由": raw or "未明确",
+        }
+    else:
+        for label in OUTPUT_LABELS:
+            if not extracted[label]:
+                extracted[label] = "未明确"
+
+    return (
+        f"西医诊断：{extracted['西医诊断']}\n"
+        f"主证：{extracted['主证']}\n"
+        f"兼证：{extracted['兼证']}\n"
+        f"方药：{extracted['方药']}\n"
+        f"理由：{extracted['理由']}"
+    )
 
 
 @dataclass
@@ -192,13 +233,22 @@ class LLMProvider(Protocol):
     async def generate(self, messages: list[ChatMessage]) -> str:
         pass
 
+    async def generate_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
+        pass
+
 
 class StubLLMProvider:
     model_name = "stub-test"
 
     async def generate(self, messages: list[ChatMessage]) -> str:
         await asyncio.sleep(0.02)
-        return "test"
+        return "西医诊断：test\n主证：test\n兼证：test\n方药：test\n理由：test"
+
+    async def generate_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
+        text = await self.generate(messages)
+        for token in text:
+            await asyncio.sleep(0.003)
+            yield token
 
 
 class OpenAICompatibleProvider:
@@ -220,19 +270,28 @@ class OpenAICompatibleProvider:
         self._top_p = top_p
         self._max_tokens = max_tokens
 
-    async def generate(self, messages: list[ChatMessage]) -> str:
-        endpoint = f"{self._base_url}/chat/completions"
-        payload = {
+    def _build_payload(self, messages: list[ChatMessage], stream: bool) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "model": self.model_name,
             "messages": [_model_to_dict(msg) for msg in messages],
             "temperature": self._temperature,
             "top_p": self._top_p,
             "max_tokens": self._max_tokens,
         }
+        if stream:
+            payload["stream"] = True
+        return payload
+
+    def _build_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
 
+    async def generate(self, messages: list[ChatMessage]) -> str:
+        endpoint = f"{self._base_url}/chat/completions"
+        payload = self._build_payload(messages=messages, stream=False)
+        headers = self._build_headers()
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(endpoint, headers=headers, json=payload)
             response.raise_for_status()
@@ -247,133 +306,38 @@ class OpenAICompatibleProvider:
             raise RuntimeError("Empty response from model provider")
         return content.strip()
 
-
-class LocalTransformersProvider:
-    def __init__(
-        self,
-        model_path: str,
-        dtype: str,
-        device_map: str,
-        max_new_tokens: int,
-        temperature: float,
-        top_p: float,
-        repetition_penalty: float,
-        max_parallel: int,
-    ) -> None:
-        self._model_path = Path(model_path)
-        if not self._model_path.exists():
-            raise RuntimeError(f"LOCAL_MODEL_PATH does not exist: {self._model_path}")
+    async def generate_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
+        endpoint = f"{self._base_url}/chat/completions"
+        payload = self._build_payload(messages=messages, stream=True)
+        headers = self._build_headers()
 
         try:
-            import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer
-        except Exception as exc:
-            raise RuntimeError(
-                "Local model provider requires torch and transformers. "
-                "Install dependencies first."
-            ) from exc
-
-        self._torch = torch
-        self._max_new_tokens = max(1, max_new_tokens)
-        self._temperature = max(0.0, temperature)
-        self._top_p = min(max(top_p, 0.01), 1.0)
-        self._repetition_penalty = max(1.0, repetition_penalty)
-        self._parallel_limiter = asyncio.Semaphore(max(1, max_parallel))
-        self.model_name = self._model_path.name
-
-        logger.info("Loading local model from %s", self._model_path)
-        tokenizer = AutoTokenizer.from_pretrained(
-            str(self._model_path),
-            trust_remote_code=True,
-            use_fast=True,
-        )
-        if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
-            tokenizer.pad_token = tokenizer.eos_token
-        self._tokenizer = tokenizer
-
-        model_kwargs: dict[str, Any] = {
-            "trust_remote_code": True,
-            "device_map": device_map,
-        }
-        torch_dtype = self._resolve_dtype(dtype, torch)
-        if torch_dtype is not None:
-            model_kwargs["torch_dtype"] = torch_dtype
-
-        self._model = AutoModelForCausalLM.from_pretrained(str(self._model_path), **model_kwargs)
-        self._model.eval()
-        logger.info(
-            "Local model ready: %s, dtype=%s, device_map=%s, max_parallel=%s",
-            self.model_name,
-            dtype,
-            device_map,
-            max(1, max_parallel),
-        )
-
-    @staticmethod
-    def _resolve_dtype(dtype: str, torch_module: Any) -> Any | None:
-        mapping = {
-            "auto": None,
-            "bfloat16": torch_module.bfloat16,
-            "bf16": torch_module.bfloat16,
-            "float16": torch_module.float16,
-            "fp16": torch_module.float16,
-            "float32": torch_module.float32,
-            "fp32": torch_module.float32,
-        }
-        if dtype not in mapping:
-            logger.warning("Unknown LOCAL_MODEL_DTYPE=%s, fallback to auto", dtype)
-            return None
-        return mapping[dtype]
-
-    def _build_prompt(self, messages: list[ChatMessage]) -> str:
-        chat_messages = [_model_to_dict(msg) for msg in messages]
-        if hasattr(self._tokenizer, "apply_chat_template"):
-            return self._tokenizer.apply_chat_template(
-                chat_messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        lines = [f"{msg['role']}: {msg['content']}" for msg in chat_messages]
-        lines.append("assistant:")
-        return "\n".join(lines)
-
-    def _prepare_inputs(self, prompt: str) -> dict[str, Any]:
-        inputs = self._tokenizer(prompt, return_tensors="pt")
-        try:
-            target_device = next(self._model.parameters()).device
-        except StopIteration:
-            target_device = None
-        if target_device is None:
-            return dict(inputs)
-        return {key: value.to(target_device) for key, value in inputs.items()}
-
-    def _generate_sync(self, messages: list[ChatMessage]) -> str:
-        prompt = self._build_prompt(messages)
-        inputs = self._prepare_inputs(prompt)
-        input_ids = inputs["input_ids"]
-        generation_kwargs: dict[str, Any] = {
-            "max_new_tokens": self._max_new_tokens,
-            "repetition_penalty": self._repetition_penalty,
-            "pad_token_id": self._tokenizer.pad_token_id,
-            "eos_token_id": self._tokenizer.eos_token_id,
-        }
-        if self._temperature <= 0:
-            generation_kwargs["do_sample"] = False
-        else:
-            generation_kwargs["do_sample"] = True
-            generation_kwargs["temperature"] = self._temperature
-            generation_kwargs["top_p"] = self._top_p
-
-        with self._torch.inference_mode():
-            output_ids = self._model.generate(**inputs, **generation_kwargs)
-
-        generated_ids = output_ids[0][input_ids.shape[-1] :]
-        text = self._tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
-        return text if text else "test"
-
-    async def generate(self, messages: list[ChatMessage]) -> str:
-        async with self._parallel_limiter:
-            return await asyncio.to_thread(self._generate_sync, messages)
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                async with client.stream("POST", endpoint, headers=headers, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        text = line.strip()
+                        if not text or not text.startswith("data:"):
+                            continue
+                        data_chunk = text[5:].strip()
+                        if data_chunk == "[DONE]":
+                            break
+                        try:
+                            chunk_json = json.loads(data_chunk)
+                        except json.JSONDecodeError:
+                            continue
+                        delta = (
+                            chunk_json.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
+                        if isinstance(delta, str) and delta:
+                            yield delta
+        except Exception:
+            logger.warning("Streaming is unavailable on provider side, fallback to non-stream response")
+            text = await self.generate(messages)
+            if text:
+                yield text
 
 
 def _load_example_text() -> tuple[str, str]:
@@ -389,19 +353,41 @@ def _load_example_text() -> tuple[str, str]:
     return instruction, output
 
 
-def _build_system_prompt() -> str:
-    instruction_sample, output_sample = _load_example_text()
-    prompt = (
-        "你是医院内网使用的颈椎病中医辅助诊疗对话助手。"
-        "当用户输入病例描述时，优先按“西医诊断、主证、兼证、方药”四部分组织输出。"
-        "语气需客观、谨慎，不夸大疗效，不替代医生最终决策。"
+def _normalize_dialogue_output(raw_text: str) -> str:
+    text = (raw_text or "").strip()
+    if not text:
+        return "已收到信息。请继续补充目前最困扰你的症状、持续时间以及加重/缓解因素。"
+    return text
+
+
+def _build_dialogue_system_prompt() -> str:
+    return (
+        "你是医院内网使用的颈椎病问诊助手。"
+        "你的目标是通过连续追问完成结构化病史采集。"
+        "每轮回答遵循以下规则："
+        "1) 先简短复述已知信息；"
+        "2) 再给出1-3个最关键的下一步问诊问题；"
+        "3) 语气专业、克制，避免绝对化结论；"
+        "4) 若信息不足，不给最终治疗方案，而是继续问诊。"
     )
-    if instruction_sample and output_sample:
-        prompt += (
-            f" 参考样例输入片段：{instruction_sample}。"
-            f" 参考样例输出片段：{output_sample}。"
-        )
-    return prompt
+
+
+def _build_diagnosis_system_prompt() -> str:
+    return (
+        "你是医院内网使用的颈椎病中医辅助诊疗助手。"
+        "你只能基于“当前这一次用户输入”的信息作答，禁止引用示例、禁止套用默认病例、禁止臆测。"
+        "你必须且只允许按以下格式输出，不得增加其它标题、前缀或结尾：\n"
+        "西医诊断：...\n"
+        "主证：...\n"
+        "兼证：...\n"
+        "方药：...\n"
+        "理由：...\n"
+        "其中“方药”必须写出具体处方及每味药的剂量，剂量单位统一使用g；"
+        "并给出基本用法用量（例如“每日1剂，分2次温服”）。"
+        "当信息不足时，西医诊断/主证/兼证/方药必须输出“未明确”；"
+        "理由必须明确写“信息不足，需补充xxx（缺失要点）”。"
+        "不得因为经验或示例而给出确定性诊断。"
+    )
 
 
 def _build_openai_compat_provider(
@@ -444,20 +430,6 @@ def build_provider() -> LLMProvider:
             provider_name="openai_compat",
         )
 
-    if provider in {"hf_local", "transformers_local", "local_transformers"}:
-        if not settings.local_model_path:
-            raise RuntimeError("MODEL_PROVIDER=hf_local but LOCAL_MODEL_PATH is empty.")
-        return LocalTransformersProvider(
-            model_path=settings.local_model_path,
-            dtype=settings.local_model_dtype,
-            device_map=settings.local_model_device_map,
-            max_new_tokens=settings.local_model_max_new_tokens,
-            temperature=settings.local_model_temperature,
-            top_p=settings.local_model_top_p,
-            repetition_penalty=settings.local_model_repetition_penalty,
-            max_parallel=settings.local_model_max_parallel,
-        )
-
     logger.info("Using stub provider, reply will be fixed string 'test'")
     return StubLLMProvider()
 
@@ -468,16 +440,23 @@ class ChatService:
         provider: LLMProvider,
         store: InMemorySessionStore,
         system_prompt: str,
+        output_formatter: Callable[[str], str],
         max_concurrent_calls: int,
         timeout_seconds: int,
         max_history_messages: int,
     ) -> None:
         self._provider = provider
         self._store = store
+        self._system_prompt_text = system_prompt
         self._system_prompt = ChatMessage(role="system", content=system_prompt)
+        self._output_formatter = output_formatter
         self._semaphore = asyncio.Semaphore(max_concurrent_calls)
         self._timeout_seconds = timeout_seconds
         self._max_history_messages = max_history_messages
+
+    @property
+    def system_prompt_text(self) -> str:
+        return self._system_prompt_text
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         session_id = request.session_id or uuid.uuid4().hex
@@ -493,7 +472,7 @@ class ChatService:
             start = time.perf_counter()
             try:
                 async with self._semaphore:
-                    reply = await asyncio.wait_for(
+                    raw_reply = await asyncio.wait_for(
                         self._provider.generate(messages),
                         timeout=self._timeout_seconds,
                     )
@@ -504,9 +483,7 @@ class ChatService:
                 raise HTTPException(status_code=502, detail=f"Model call failed: {exc}") from exc
 
             latency_ms = int((time.perf_counter() - start) * 1000)
-            reply_text = reply.strip() if isinstance(reply, str) else ""
-            if not reply_text:
-                reply_text = "test"
+            reply_text = self._output_formatter(raw_reply)
             assistant_message = ChatMessage(role="assistant", content=reply_text)
             merged_history = [*base_history, user_message, assistant_message]
             trimmed_history = merged_history[-self._max_history_messages :]
@@ -523,19 +500,91 @@ class ChatService:
                 history=trimmed_history,
             )
 
+    async def chat_stream(self, request: ChatRequest) -> AsyncIterator[dict[str, Any]]:
+        session_id = request.session_id or uuid.uuid4().hex
+        state = await self._store.get_or_create(session_id)
+        clean_message = request.message.strip()
+        if not clean_message:
+            yield {"type": "error", "detail": "message cannot be blank"}
+            return
+        user_message = ChatMessage(role="user", content=clean_message)
 
-store = InMemorySessionStore(ttl_seconds=settings.session_ttl_seconds)
+        async with state.lock:
+            base_history = list(state.history) if request.use_server_history else list(request.history)
+            messages = [self._system_prompt, *base_history, user_message]
+            start = time.perf_counter()
+            chunks: list[str] = []
+
+            try:
+                async with self._semaphore:
+                    async for delta in self._provider.generate_stream(messages):
+                        if not delta:
+                            continue
+                        chunks.append(delta)
+                        yield {"type": "token", "delta": delta}
+            except Exception as exc:
+                logger.exception("Model stream invocation failed")
+                yield {"type": "error", "detail": f"Model call failed: {exc}"}
+                return
+
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            raw_reply = "".join(chunks).strip()
+            if not raw_reply:
+                try:
+                    async with self._semaphore:
+                        raw_reply = await asyncio.wait_for(
+                            self._provider.generate(messages),
+                            timeout=self._timeout_seconds,
+                        )
+                except Exception as exc:
+                    yield {"type": "error", "detail": f"Model call failed: {exc}"}
+                    return
+
+            reply_text = self._output_formatter(raw_reply)
+            assistant_message = ChatMessage(role="assistant", content=reply_text)
+            merged_history = [*base_history, user_message, assistant_message]
+            trimmed_history = merged_history[-self._max_history_messages :]
+
+            if request.use_server_history:
+                state.history = trimmed_history
+                state.last_access = time.time()
+
+            yield {
+                "type": "done",
+                "session_id": session_id,
+                "reply": reply_text,
+                "model": self._provider.model_name,
+                "latency_ms": latency_ms,
+                "history": [_model_to_dict(msg) for msg in trimmed_history],
+            }
+
+
 provider = build_provider()
-service = ChatService(
+
+diagnosis_store = InMemorySessionStore(ttl_seconds=settings.session_ttl_seconds)
+dialogue_store = InMemorySessionStore(ttl_seconds=settings.session_ttl_seconds)
+
+diagnosis_service = ChatService(
     provider=provider,
-    store=store,
-    system_prompt=_build_system_prompt(),
+    store=diagnosis_store,
+    system_prompt=_build_diagnosis_system_prompt(),
+    output_formatter=_normalize_output_format,
     max_concurrent_calls=settings.max_concurrent_model_calls,
     timeout_seconds=settings.request_timeout_seconds,
     max_history_messages=settings.max_history_messages,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.3.0")
+dialogue_service = ChatService(
+    provider=provider,
+    store=dialogue_store,
+    system_prompt=_build_dialogue_system_prompt(),
+    output_formatter=_normalize_dialogue_output,
+    max_concurrent_calls=settings.max_concurrent_model_calls,
+    timeout_seconds=settings.request_timeout_seconds,
+    max_history_messages=settings.max_history_messages,
+)
+
+app = FastAPI(title="Hospital Intranet Chat System", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -554,7 +603,7 @@ _cleanup_task: asyncio.Task | None = None
 async def _disable_static_cache(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
-    if path == "/" or path.startswith("/static/"):
+    if path in {"/", "/diagnosis", "/favicon.ico"} or path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -564,9 +613,16 @@ async def _disable_static_cache(request: Request, call_next):
 async def _cleanup_loop() -> None:
     while True:
         await asyncio.sleep(settings.session_cleanup_interval_seconds)
-        removed = await store.cleanup_expired()
-        if removed:
-            logger.info("Cleaned up %s expired sessions", removed)
+        removed_diagnosis = await diagnosis_store.cleanup_expired()
+        removed_dialogue = await dialogue_store.cleanup_expired()
+        total_removed = removed_diagnosis + removed_dialogue
+        if total_removed:
+            logger.info(
+                "Cleaned up %s expired sessions (diagnosis=%s, dialogue=%s)",
+                total_removed,
+                removed_diagnosis,
+                removed_dialogue,
+            )
 
 
 @app.on_event("startup")
@@ -591,22 +647,95 @@ async def index() -> FileResponse:
     return FileResponse(web_dir / "index.html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> RedirectResponse:
+    return RedirectResponse(url="/static/favicon.svg", status_code=307)
+
+
+@app.get("/diagnosis", include_in_schema=False)
+async def diagnosis_page() -> FileResponse:
+    return FileResponse(web_dir / "diagnosis.html")
+
+
 @app.get("/api/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
+    diagnosis_sessions = await diagnosis_store.active_sessions()
+    dialogue_sessions = await dialogue_store.active_sessions()
     return HealthResponse(
         status="ok",
         provider=provider.model_name,
-        active_sessions=await store.active_sessions(),
+        active_sessions=diagnosis_sessions + dialogue_sessions,
         max_concurrent_model_calls=settings.max_concurrent_model_calls,
+    )
+
+
+@app.get("/api/prompt", response_model=PromptResponse)
+async def prompt() -> PromptResponse:
+    return PromptResponse(
+        system_prompt=diagnosis_service.system_prompt_text,
+        required_output_format=OUTPUT_TEMPLATE,
+    )
+
+
+@app.get("/api/dialogue/prompt", response_model=PromptResponse)
+async def dialogue_prompt() -> PromptResponse:
+    return PromptResponse(
+        system_prompt=dialogue_service.system_prompt_text,
+        required_output_format="对话追问模式（无固定字段模板）",
     )
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
-    return await service.chat(request)
+    return await diagnosis_service.chat(request)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    async def event_generator() -> AsyncIterator[str]:
+        async for event in diagnosis_service.chat_stream(request):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.post("/api/dialogue/chat", response_model=ChatResponse)
+async def dialogue_chat(request: ChatRequest) -> ChatResponse:
+    return await dialogue_service.chat(request)
+
+
+@app.post("/api/dialogue/chat/stream")
+async def dialogue_chat_stream(request: ChatRequest) -> StreamingResponse:
+    async def event_generator() -> AsyncIterator[str]:
+        async for event in dialogue_service.chat_stream(request):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.post("/api/session/reset")
 async def reset_session(request: ResetSessionRequest) -> dict[str, object]:
-    cleared = await store.clear(request.session_id)
+    cleared = await diagnosis_store.clear(request.session_id)
+    return {"session_id": request.session_id, "cleared": cleared}
+
+
+@app.post("/api/dialogue/session/reset")
+async def reset_dialogue_session(request: ResetSessionRequest) -> dict[str, object]:
+    cleared = await dialogue_store.clear(request.session_id)
     return {"session_id": request.session_id, "cleared": cleared}

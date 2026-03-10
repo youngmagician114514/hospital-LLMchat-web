@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>结构化诊断</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260310_1">
+  <link rel="stylesheet" href="/static/diagnosis.css?v=20260310_4">
+</head>
+<body>
+  <div class="diag-shell">
+    <header class="diag-topbar">
+      <h1>结构化诊断工作台</h1>
+      <div class="diag-topbar-actions">
+        <span id="modelChip" class="model-chip">模型：-</span>
+        <a class="ghost-btn link-btn" href="/">返回问诊对话</a>
+      </div>
+    </header>
+
+    <main class="diag-main">
+      <section class="input-pane">
+        <div class="panel-head">病历输入</div>
+        <textarea
+          id="caseInput"
+          placeholder="在此输入主诉、现病史、体征、影像学、舌脉等信息..."
+        ></textarea>
+        <div class="actions">
+          <button id="fillDemoBtn" type="button" class="ghost-btn">填充示例</button>
+          <button id="clearBtn" type="button" class="ghost-btn">清空</button>
+          <button id="diagnoseBtn" type="button" class="primary-btn">生成诊断</button>
+        </div>
+      </section>
+
+      <section class="output-pane">
+        <div class="panel-head">诊断输出</div>
+        <div class="output-grid">
+          <article class="field-card">
+            <h3>西医诊断</h3>
+            <p id="outDiagnosis">-</p>
+          </article>
+          <article class="field-card">
+            <h3>主证</h3>
+            <p id="outMain">-</p>
+          </article>
+          <article class="field-card">
+            <h3>兼证</h3>
+            <p id="outSecondary">-</p>
+          </article>
+          <article class="field-card">
+            <h3>方药</h3>
+            <p id="outPrescription">-</p>
+          </article>
+          <article class="field-card full">
+            <h3>理由</h3>
+            <p id="outReason">-</p>
+          </article>
+        </div>
+        <div class="result-footer">
+          <button id="copyBtn" type="button" class="ghost-btn">复制结果</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/diagnosis.js?v=20260310_4"></script>
+</body>
+</html>
