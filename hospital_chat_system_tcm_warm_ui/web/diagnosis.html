@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>颈椎病辅助诊疗</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20261014_office_1">
+  <link rel="stylesheet" href="/static/theme.css?v=20261014_office_1">
+  <link rel="stylesheet" href="/static/diagnosis.css?v=20261014_stream_2">
+</head>
+<body>
+  <div class="diag-app">
+    <header class="top-nav">
+      <div class="brand-area">
+        <span class="brand-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 4h3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <div class="brand-text"><strong>颈椎病辅助诊疗</strong><small>门诊工作台</small></div>
+      </div>
+
+      <nav class="primary-nav" aria-label="一级导航">
+        <a class="active" href="/diagnosis">诊疗工作台</a>
+        <a href="/dialogue">独立问诊</a>
+      </nav>
+
+      <div class="nav-meta">
+        <span id="currentTime" class="meta-chip">--</span>
+        <span id="modelChip" class="meta-chip model-chip">连接中</span>
+        <div id="thinkingControls" class="thinking-controls" role="group" aria-label="思考强度">
+          <span>思考</span><button type="button" data-thinking="off" aria-pressed="false">关闭</button><button type="button" data-thinking="low" aria-pressed="true">中</button><button type="button" data-thinking="high" aria-pressed="false">高</button><button type="button" data-thinking="max" aria-pressed="false">超高</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="workspace-header" aria-label="当前病历">
+      <h1>颈椎病门诊</h1>
+      <div class="case-meta">
+        <span id="summaryVisitNo">—</span><span id="summaryVisitType">初诊</span><span id="summaryGenderAge">未填写</span>
+        <span id="summaryChief" hidden>待填写</span>
+        <span class="save-meta">草稿 <span id="summaryUpdatedAt">—</span></span>
+      </div>
+      <div class="header-actions">
+        <button id="clearBtn" type="button" class="ghost-btn">新建病历</button>
+        <button id="importSampleCaseBtn" type="button" class="ghost-btn">示例病例</button>
+        <button id="fillDemoBtn" type="button" class="outline-btn">导入病历</button>
+      </div>
+    </section>
+    <main class="workspace">
+      <section class="record-card entry-card" aria-label="病历录入">
+        <header class="record-card-head">
+          <div class="card-title-row"><h2>病历录入</h2><span id="caseCompletion" class="subtle-count">0 / 8 项</span></div>
+          <nav id="sectionNav" class="section-nav" role="tablist" aria-label="病历内容">
+            <button id="recordTab" type="button" class="nav-chip is-active" role="tab" aria-selected="true" aria-controls="recordPanel" data-target="recordPanel">本次病历</button>
+            <button id="followupTab" type="button" class="nav-chip" role="tab" aria-selected="false" aria-controls="followupPanel" data-target="followupPanel" disabled>复诊记录</button>
+            <button id="imagesTab" type="button" class="nav-chip" role="tab" aria-selected="false" aria-controls="imagesPanel" data-target="imagesPanel">图片资料</button>
+          </nav>
+        </header>
+        <form id="caseForm" class="form-scroll">
+          <section id="recordPanel" class="case-panel" role="tabpanel" aria-labelledby="recordTab">
+            <div class="patient-basics">
+              <section id="sec-visit" class="visit-field"><span class="field-title">就诊类型</span><div class="visit-switch">
+                      <label class="visit-option is-active" data-type="初诊">
+                        <input type="radio" name="visitType" value="初诊" checked>
+                        <span>初诊</span>
+                      </label>
+                      <label class="visit-option" data-type="复诊">
+                        <input type="radio" name="visitType" value="复诊">
+                        <span>复诊</span>
+                      </label>
+                    </div></section>
+              <section id="sec-basic" class="basic-fields"><label class="field">
+                      <span>性别</span>
+                      <select id="patientGender">
+                        <option value="">未填写</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                      </select>
+                    </label><label class="field">
+                      <span>年龄</span>
+                      <input id="patientAge" type="number" min="0" max="120" placeholder="岁">
+                    </label></section>
+            </div>
+            <div class="clinical-fields">
+              <div class="field">
+                      <div class="field-heading"><label for="chiefComplaint">主诉</label><button type="button" class="field-expand" data-field="chiefComplaint" aria-label="展开主诉">展开</button></div>
+                      <textarea id="chiefComplaint" rows="3" placeholder="疼痛部位、主要症状及持续时间"></textarea>
+                    </div><div class="field">
+                      <div class="field-heading"><label for="presentIllness">现病史</label><button type="button" class="field-expand" data-field="presentIllness" aria-label="展开现病史">展开</button></div>
+                      <textarea id="presentIllness" rows="5" placeholder="起病经过、诱因、加重或缓解因素"></textarea>
+                    </div>
+              <div class="field">
+                      <div class="field-heading"><label for="physicalExam">查体</label><button type="button" class="field-expand" data-field="physicalExam" aria-label="展开查体">展开</button></div>
+                      <textarea id="physicalExam" rows="4" placeholder="活动度、压痛及神经系统体征"></textarea>
+                    </div><div class="field">
+                      <div class="field-heading"><label for="imagingFindings">影像学/检验</label><button type="button" class="field-expand" data-field="imagingFindings" aria-label="展开影像学/检验">展开</button></div>
+                      <textarea id="imagingFindings" rows="4" placeholder="填写 MRI、CT、X 线或检验结论"></textarea>
+                    </div>
+              <div class="field">
+                      <div class="field-heading"><label for="tonguePulse">舌脉</label><button type="button" class="field-expand" data-field="tonguePulse" aria-label="展开舌脉">展开</button></div>
+                      <textarea id="tonguePulse" rows="3" placeholder="舌质、舌苔、脉象"></textarea>
+                    </div><div class="field">
+                      <div class="field-heading"><label for="historyAllergy">既往史与过敏史</label><button type="button" class="field-expand" data-field="historyAllergy" aria-label="展开既往史与过敏史">展开</button></div>
+                      <textarea id="historyAllergy" rows="4" placeholder="既往疾病、用药、家族史及过敏史"></textarea>
+                    </div>
+            </div>
+          </section>
+          <section id="followupPanel" class="case-panel" role="tabpanel" aria-labelledby="followupTab" hidden>
+            <section id="sec-followup" hidden>
+              <div class="panel-description">补充初诊记录与本次症状变化。</div>
+              <div class="followup-fields"><label class="field">
+                      <span>初诊时间</span>
+                      <input id="firstVisitDate" type="text" placeholder="年 / 月 / 日">
+                    </label><label class="field">
+                      <span>初诊诊断</span>
+                      <input id="firstVisitDiagnosis" type="text" placeholder="填写初诊结论">
+                    </label><label class="field full">
+                      <span>初诊方药与剂量</span>
+                      <textarea id="firstVisitPrescription" rows="3" placeholder="如：葛根30g、桂枝10g、白芍12g..." ></textarea>
+                    </label><label class="field full">
+                      <span>服药后变化</span>
+                      <textarea id="afterChange" rows="3" placeholder="如：颈项疼痛减轻，左上肢麻木仍偶发"></textarea>
+                    </label></div>
+            </section>
+          </section>
+          <section id="imagesPanel" class="case-panel" role="tabpanel" aria-labelledby="imagesTab" hidden>
+            <section id="sec-images"><div class="field upload-wrap">
+                      <span>图片资料</span>
+                      <p class="upload-note">仅供本机预览，图片内容暂不参与分析。</p><div class="upload-grid">
+                        <div class="upload-box">
+                          <label for="tongueImageInput">舌象图片</label>
+                          <input id="tongueImageInput" type="file" accept="image/*" multiple>
+                          <div id="tonguePreview" class="preview-grid" aria-live="polite"></div>
+                          <ul id="tongueImageList" class="file-list">
+                            <li class="empty">未上传</li>
+                          </ul>
+                        </div>
+                        <div class="upload-box">
+                          <label for="imagingFileInput">检查影像图片</label>
+                          <input id="imagingFileInput" type="file" accept="image/*" multiple>
+                          <div id="imagingPreview" class="preview-grid" aria-live="polite"></div>
+                          <ul id="imagingFileList" class="file-list">
+                            <li class="empty">未上传</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+          </section>
+        </form>
+        <footer class="action-bar">
+          <span id="formStatus" class="form-status">草稿保存在本机</span>
+          <div class="action-right"><span class="shortcut-hint">Ctrl + Enter</span><button id="diagnoseBtn" type="button" class="primary-btn">生成建议 <span aria-hidden="true">→</span></button></div>
+        </footer>
+      </section>
+      <aside class="review-panel" aria-label="诊断与问诊">
+        <nav id="reviewNav" class="review-tabs" role="tablist" aria-label="查看内容">
+          <button id="reviewResultTab" type="button" role="tab" aria-selected="true" aria-controls="resultAnchor" data-panel="resultAnchor">诊断建议</button>
+          <button id="reviewChatTab" type="button" role="tab" aria-selected="false" aria-controls="chatPanel" data-panel="chatPanel">问诊助手</button>
+        </nav>
+        <section id="resultAnchor" class="output-card" role="tabpanel" aria-labelledby="reviewResultTab" aria-label="诊断建议">
+            <div class="record-card-head output-head">
+              <div>
+                <div class="card-title-row"><h2>诊断建议</h2><span id="resultState" class="state-tag">待生成</span></div>
+                <p id="summaryHint" class="summary-hint">依据本次病历</p>
+              </div>
+              <button id="copyBtn" type="button" class="minor-btn" disabled>复制结果</button>
+              <div id="generationBadge" class="generation-badge hidden" aria-live="polite">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span>正在生成</span>
+              </div>
+            </div>
+
+            <div class="diagnosis-overview"><span>西医诊断</span><p id="summaryConclusion" class="summary-conclusion">待生成</p></div>
+
+            <section id="emptyState" class="empty-state">
+              <span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><rect x="12" y="8" width="25" height="34" rx="4" stroke="currentColor" stroke-width="2"/><rect x="19" y="5" width="12" height="7" rx="2" fill="var(--surface)" stroke="currentColor" stroke-width="2"/><path d="M19 22h11M19 28h11M19 34h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><h3>等待病历录入</h3>
+              <p>填写主诉或现病史后，点击“生成建议”。</p>
+            </section>
+
+            <section id="skeletonState" class="skeleton-grid hidden" aria-hidden="true">
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card full"></div>
+            </section>
+
+            <section id="resultGrid" class="result-grid hidden">
+              <article class="result-card major key">
+                <header>
+                  <h3>西医诊断</h3>
+                  <button type="button" class="mini-copy" data-copy="outDiagnosis">复制</button>
+                </header>
+                <p id="outDiagnosis">-</p>
+              </article>
+              <article class="result-card major syndrome">
+                <header>
+                  <h3>主证</h3>
+                  <button type="button" class="mini-copy" data-copy="outMain">复制</button>
+                </header>
+                <p id="outMain">-</p>
+              </article>
+              <article class="result-card major syndrome">
+                <header>
+                  <h3>兼证</h3>
+                  <button type="button" class="mini-copy" data-copy="outSecondary">复制</button>
+                </header>
+                <p id="outSecondary">-</p>
+              </article>
+              <article class="result-card major formula">
+                <header>
+                  <h3>方药组成</h3>
+                  <button type="button" class="mini-copy" data-copy="outPrescription">复制</button>
+                </header>
+                <p id="outPrescription">-</p>
+              </article>
+              <article class="result-card full muted">
+                <header>
+                  <h3>诊断理由</h3>
+                  <button type="button" class="mini-copy" data-copy="outReason">复制</button>
+                </header>
+                <p id="outReason">-</p>
+              </article>
+            </section>
+
+            <section class="stream-card">
+              <details id="streamBox">
+                <summary>查看原文</summary>
+                <pre id="streamDraft">-</pre>
+              </details>
+            </section>
+
+            <p class="clinical-note">仅供参考</p><div class="result-meta-row">
+              <span id="resultMeta" class="result-meta"></span>
+            </div>
+          </section>
+        <section id="chatPanel" class="right-panel" role="tabpanel" aria-labelledby="reviewChatTab" aria-label="问诊助手" hidden>
+        <header class="chat-head">
+          <div>
+            <div class="chat-title-row">
+              <h2>问诊记录</h2>
+            </div>
+            <p>结合当前病历补充询问</p>
+          </div>
+          <div class="chat-head-actions">
+            <button id="aiNewChatBtn" type="button" class="minor-btn">新会话</button>
+          </div>
+        </header>
+
+        <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
+
+        <form id="aiChatForm" class="ai-composer">
+          <textarea id="aiMessageInput" rows="1" placeholder="输入问题，Enter 发送" required></textarea>
+          <div id="quickQuestions" class="quick-questions"><button type="button" data-question="当前病历还需要补充哪些症状？">补充症状</button><button type="button" data-question="当前病历的舌象和脉象还需要补充什么？">舌脉信息</button><button type="button" data-question="复诊时应重点询问哪些症状变化？">复诊变化</button></div><div class="composer-actions">
+            <button id="chatUploadBtn" type="button" class="minor-btn">图片资料</button>
+            <button id="aiSendBtn" type="submit" class="send-btn">发送</button>
+          </div>
+        </form>
+
+        <div id="aiChatStatus" class="chat-status">Enter 发送 · Shift + Enter 换行</div>
+      </section>
+      </aside>
+    </main>
+  </div>
+
+  <dialog id="fieldEditor" class="assist-modal field-editor" aria-labelledby="fieldEditorTitle">
+    <header class="modal-head"><h3 id="fieldEditorTitle">编辑病历</h3><button id="closeFieldEditor" type="button" class="modal-close" aria-label="关闭编辑">×</button></header>
+    <div class="modal-body"><textarea id="fieldEditorInput" rows="12" aria-label="病历内容"></textarea></div>
+    <footer class="modal-foot field-editor-actions"><span>Ctrl + Enter 保存</span><button id="cancelFieldEditor" type="button" class="ghost-btn">取消</button><button id="saveFieldEditor" type="button" class="primary-btn">保存到病历</button></footer>
+  </dialog>
+
+  <dialog id="assistModal" class="assist-modal">
+    <form method="dialog" class="modal-shell">
+      <header class="modal-head">
+        <h3 id="assistModalTitle">辅助结果</h3>
+        <button id="closeAssistModal" type="button" class="modal-close" aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <section class="modal-block">
+          <h4>辨证结论</h4>
+          <p id="modalSyndrome">-</p>
+        </section>
+        <section class="modal-block">
+          <h4>诊断依据</h4>
+          <p id="modalBasis">-</p>
+        </section>
+        <section class="modal-block">
+          <h4>处方建议</h4>
+          <p id="modalPrescription">-</p>
+        </section>
+        <section class="modal-block">
+          <h4>方药组成</h4>
+          <p id="modalComposition">-</p>
+        </section>
+      </div>
+      <footer class="modal-foot">
+        仅供参考
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="bulkImportModal" class="assist-modal import-modal">
+    <form method="dialog" class="modal-shell import-modal-shell">
+      <header class="modal-head">
+        <h3>导入病历</h3>
+        <button id="closeBulkImportModal" type="button" class="modal-close" aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body import-modal-body">
+        <section class="modal-block import-modal-block">
+          <h4>病例</h4>
+          <textarea
+            id="bulkImportInput"
+            rows="10"
+            placeholder="粘贴病例"
+          ></textarea>
+          <div class="import-modal-foot">
+            <span id="bulkImportStatus" class="import-status">待粘贴</span>
+          </div>
+          <section id="bulkImportPreview" class="import-progress" hidden>
+            <h4>识别结果</h4><pre id="bulkImportStream" aria-live="polite"></pre>
+          </section>
+        </section>
+      </div>
+      <footer class="modal-foot import-modal-actions">
+        <button id="bulkImportSampleBtn" type="button" class="ghost-btn">载入示例</button>
+        <button id="bulkImportClearBtn" type="button" class="ghost-btn">清空文本</button>
+        <button id="bulkImportBtn" type="button" class="primary-btn">识别填充</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/static/model_controls.js?v=20261014_thinking_1"></script>
+  <script src="/static/streaming.js?v=20261014_stream_2"></script>
+  <script src="/static/diagnosis.js?v=20261014_stream_2"></script>
+</body>
+</html>

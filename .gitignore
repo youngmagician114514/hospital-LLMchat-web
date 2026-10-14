@@ -1,0 +1,33 @@
+# Runtime configuration and credentials
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+
+# Patient data, model artifacts and local archives
+raw_data/
+data-5-26/
+*.xlsx
+*.xls
+*.jsonl
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.zip
+outputs/
+checkpoints/
+_review/
+
+# Previous version and local reference material
+/hospital_chat_system/
+/参考图片/
+/skills/
+/.vscode/
+/*.pdf
+/*.docx
+/example.json
