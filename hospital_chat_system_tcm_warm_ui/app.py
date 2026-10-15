@@ -1060,7 +1060,7 @@ form_autofill_service = FormAutofillService(
     max_concurrent_calls=settings.max_concurrent_model_calls,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.6.0")
+app = FastAPI(title="Hospital Intranet Chat System", version="0.8.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
