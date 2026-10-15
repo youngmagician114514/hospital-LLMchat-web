@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>帮助文档 · 颈椎病辅助诊疗</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20261014_1">
+  <link rel="stylesheet" href="/static/theme.css?v=20261015_type_1">
+  <link rel="stylesheet" href="/static/help.css?v=20261015_1">
+</head>
+<body class="docs-page">
+  <a class="skip-link" href="#docContent">跳到正文</a>
+  <header class="top-nav">
+    <div class="brand-area">
+      <span class="brand-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 4h3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <div class="brand-text"><strong>颈椎病辅助诊疗</strong></div>
+    </div>
+    <nav class="primary-nav" aria-label="一级导航">
+      <a href="/diagnosis">诊疗工作台</a>
+      <a href="/dialogue">独立问诊</a>
+      <a class="active" href="/static/help.html" aria-current="page">帮助文档</a>
+    </nav>
+  </header>
+  <div class="docs-mobile-bar">
+    <button id="docsMenuBtn" type="button" aria-controls="docsSidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>目录</button>
+    <span id="currentDocLabel">快速开始</span>
+  </div>
+  <div class="docs-layout">
+    <aside id="docsSidebar" class="docs-sidebar">
+      <nav aria-label="帮助目录" id="docsNav">
+        <div class="docs-nav-group"><p>开始使用</p><a href="help.html?page=quick-start" data-page="quick-start" aria-current="page">快速开始</a></div>
+        <div class="docs-nav-group"><p>诊疗工作台</p><a href="help.html?page=case-entry" data-page="case-entry">病历录入</a><a href="help.html?page=case-import" data-page="case-import">导入与示例病例</a><a href="help.html?page=diagnosis" data-page="diagnosis">诊断建议</a></div>
+        <div class="docs-nav-group"><p>问诊</p><a href="help.html?page=dialogue" data-page="dialogue">问诊与思考</a></div>
+        <div class="docs-nav-group"><p>使用帮助</p><a href="help.html?page=faq" data-page="faq">常见问题与快捷键</a></div>
+      </nav>
+    </aside>
+    <main id="docContent" class="docs-main" tabindex="-1">
+      <article data-doc="quick-start">
+        <h1>快速开始</h1>
+        <p class="doc-lead">从一份病历开始，完成录入、生成建议与后续问答。</p>
+        <h2 id="workflow">完成一次诊疗记录</h2>
+        <ol class="workflow-list">
+          <li><strong>录入病历。</strong>在<a href="/diagnosis">诊疗工作台</a>选择初诊或复诊，填写性别、年龄和本次病历。已有门诊记录时，可直接使用“导入病历”。</li>
+          <li><strong>生成建议。</strong>填写主诉或现病史后，点击右下角“生成建议”。右侧会逐步显示生成内容。</li>
+          <li><strong>查看结果。</strong>生成完成后，按西医诊断、主证、兼证、方药与理由查看，也可以复制整份结果或其中一项。</li>
+          <li><strong>继续问诊。</strong>切换右侧“问诊助手”，围绕本次病历补充提问。修改病历后，再次点击“生成建议”。</li>
+        </ol>
+        <h2 id="first-try">用示例熟悉流程</h2>
+        <p>点击工作台顶部“示例病例”，可在导入窗口查看已有示例。点击“识别填充”，内容会按字段填入病历，再点击“生成建议”即可查看完整流程。</p>
+        <h2 id="pages">选择工作页面</h2>
+        <div class="doc-table-wrap"><table><thead><tr><th>页面</th><th>用途</th></tr></thead><tbody><tr><td><a href="/diagnosis">诊疗工作台</a></td><td>录入病历、查看诊断建议，并结合病历继续问答。</td></tr><tr><td><a href="/dialogue">独立问诊</a></td><td>围绕单独的问题开展连续对话。</td></tr></tbody></table></div>
+      </article>
+      <article data-doc="case-entry" hidden>
+        <h1>病历录入</h1>
+        <p class="doc-lead">工作台左侧按本次病历、复诊记录、图片资料分组。</p>
+        <h2 id="case-fields">本次病历</h2>
+        <p>先选择就诊类型并填写性别、年龄，再录入以下内容。主诉和现病史至少填写一项，即可生成建议。</p>
+        <div class="doc-table-wrap"><table><thead><tr><th>字段</th><th>填写内容</th></tr></thead><tbody><tr><td>主诉</td><td>主要症状、发生部位与持续时间。</td></tr><tr><td>现病史</td><td>起病经过、诱因、加重或缓解因素及伴随症状。</td></tr><tr><td>查体</td><td>活动度、压痛及神经系统体征等检查记录。</td></tr><tr><td>影像学/检验</td><td>MRI、CT、X 线或检验报告的文字结论。</td></tr><tr><td>舌脉</td><td>舌质、舌苔和脉象。</td></tr><tr><td>既往史与过敏史</td><td>既往疾病、用药、家族史和过敏史。</td></tr></tbody></table></div>
+        <p>内容较长时，点击字段右侧“展开”，在大窗口中编辑，保存后回到原字段。</p>
+        <h2 id="follow-up">复诊记录</h2>
+        <p>选择“复诊”后，可以打开“复诊记录”，填写初诊时间、初诊诊断、初诊方药与剂量，以及服药后变化。切换标签会保留已填写的内容。</p>
+        <h2 id="case-images">图片资料</h2>
+        <p>在“图片资料”中按舌象、检查影像分别添加图片，可查看文件和缩略图。需要分析的检查结论填写在“影像学/检验”中。</p>
+        <h2 id="draft">草稿与新病历</h2>
+        <p>填写内容会自动保存在当前浏览器，左下角显示保存状态。再次打开同一地址时，会恢复病历文字。</p>
+        <p>开始下一份病历时，点击顶部“新建病历”。表单与结果会清空，问诊助手也会开始新的会话。</p>
+      </article>
+      <article data-doc="case-import" hidden>
+        <h1>导入与示例病例</h1>
+        <p class="doc-lead">将已有记录整理为表单，减少逐项录入。</p>
+        <h2 id="import-record">导入已有病历</h2>
+        <ol><li>点击工作台顶部“导入病历”。</li><li>将门诊记录或整理好的文字粘贴到“病例”输入框。</li><li>点击“识别填充”。识别出的内容会逐项显示，完成后填入表单。</li><li>根据记录补充或修改字段，再点击“生成建议”。</li></ol>
+        <p>每次识别填充会开始一份新的病历记录。若要补充当前病历，可以直接编辑相应字段。</p>
+        <h2 id="sample-case">载入示例</h2>
+        <p>顶部“示例病例”会打开带有示例文本的导入窗口。在导入窗口内，也可以点击“载入示例”。</p>
+        <p>示例先显示在输入框中；点击“识别填充”后，才会填入工作台。“清空文本”只清除导入框中的文字。</p>
+        <h2 id="import-format">文字怎样组织</h2>
+        <p>按“主诉、现病史、查体、影像学/检验、舌脉、既往史”分段，便于对应到字段。没有记录的项目可以留空。</p>
+        <pre class="doc-example">主诉：……
+现病史：……
+查体：……
+影像学/检验：……
+舌脉：……
+既往史与过敏史：……</pre>
+      </article>
+      <article data-doc="diagnosis" hidden>
+        <h1>诊断建议</h1>
+        <p class="doc-lead">在右侧查看本次病历对应的结果。</p>
+        <h2 id="generate">生成与查看</h2>
+        <p>点击“生成建议”，或按 <kbd>Ctrl</kbd> + <kbd>Enter</kbd>。工作台会切换到右侧“诊断建议”，生成内容逐步显示，完成后整理为各项结果。</p>
+        <div class="doc-table-wrap"><table><thead><tr><th>结果项</th><th>内容</th></tr></thead><tbody><tr><td>西医诊断</td><td>本次病历的诊断建议。</td></tr><tr><td>主证、兼证</td><td>对应的中医证候。</td></tr><tr><td>方药</td><td>方药建议。</td></tr><tr><td>理由</td><td>诊断与辨证所依据的病历信息。</td></tr></tbody></table></div>
+        <h2 id="copy-results">复制结果</h2>
+        <p>“复制结果”可复制完整内容；各结果项旁的复制按钮用于复制单项。生成完成后，复制按钮才会启用。</p>
+        <h2 id="regenerate">修改后重新生成</h2>
+        <p>修改病历后，现有结果会标记为“需重新生成”，复制按钮随之停用。再次点击“生成建议”，即可更新结果。</p>
+        <p>生成过程中，病历编辑和思考强度切换暂时停用，结束后恢复。</p>
+      </article>
+      <article data-doc="dialogue" hidden>
+        <h1>问诊与思考</h1>
+        <p class="doc-lead">根据本次病历追问，或开启独立对话。</p>
+        <h2 id="workspace-chat">问诊助手</h2>
+        <p>在工作台右侧切换到“问诊助手”，输入问题后发送。问答会结合当前病历，可以继续补充症状、舌脉信息或复诊变化。</p>
+        <p>输入框中的快捷问题会先填入文字，点击发送后才提交。切换“诊断建议”和“问诊助手”会保留输入草稿。</p>
+        <h2 id="independent-chat">独立问诊</h2>
+        <p>打开<a href="/dialogue">独立问诊</a>，输入问题即可开始对话。可以连续提问；点击右上角“新会话”清空当前对话并重新开始。</p>
+        <p>按 <kbd>Enter</kbd> 发送，按 <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行。回复会逐步显示。</p>
+        <h2 id="thinking">思考强度</h2>
+        <p>页面顶部提供四个档位：关闭、中、高、超高。关闭时直接回复；开启后，模型会先思考再输出，较高档位可能需要更长时间。</p>
+        <p>选择会保存在当前浏览器，工作台与独立问诊共用。导入病历、生成建议和问答都会使用当前档位。</p>
+      </article>
+      <article data-doc="faq" hidden>
+        <h1>常见问题与快捷键</h1>
+        <h2 id="waiting">为什么还没有显示回复</h2>
+        <p>开启思考后，模型会先完成思考，再逐步输出正文。等待期间，页面会显示“思考中”。如页面出现请求失败提示，可在请求结束后重试。</p>
+        <h2 id="connection">页面显示“服务未连接”</h2>
+        <p>确认本机或内网服务已经启动，再刷新页面。如果其他页面也无法访问，请联系维护人员检查服务状态。</p>
+        <h2 id="copy-disabled">为什么无法复制结果</h2>
+        <p>结果尚未生成、正在生成，或病历修改后还未重新生成时，复制按钮会停用。完成本次生成后即可复制。</p>
+        <h2 id="saved-draft">草稿保存在哪里</h2>
+        <p>病历文字保存在当前浏览器中。更换浏览器、访问地址或清除浏览器数据后，需要重新录入。图片需在打开页面后重新选择。</p>
+        <h2 id="image-analysis">图片如何使用</h2>
+        <p>图片资料用于页面预览。将检查报告的文字结论填入“影像学/检验”，即可随病历一同分析。</p>
+        <h2 id="shortcuts">快捷键</h2>
+        <div class="doc-table-wrap"><table><thead><tr><th>操作</th><th>快捷键</th></tr></thead><tbody><tr><td>生成诊断建议</td><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td></tr><tr><td>发送问诊消息</td><td><kbd>Enter</kbd></td></tr><tr><td>消息换行</td><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td></tr><tr><td>保存展开编辑的字段</td><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td></tr><tr><td>切换已聚焦的标签</td><td><kbd>←</kbd> / <kbd>→</kbd></td></tr><tr><td>关闭弹窗</td><td><kbd>Esc</kbd></td></tr></tbody></table></div>
+      </article>
+      <footer class="doc-footer"><p>更新于 2026年10月15日</p><nav id="docPager" aria-label="相邻文档"></nav></footer>
+    </main>
+    <aside class="docs-outline" aria-label="页面导航"><p>本页内容</p><nav id="pageOutline"></nav></aside>
+  </div>
+  <script src="/static/help.js?v=20261015_1"></script>
+</body>
+</html>

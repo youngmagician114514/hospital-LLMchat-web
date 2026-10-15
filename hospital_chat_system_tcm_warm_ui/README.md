@@ -42,6 +42,7 @@ python -m unittest discover -s tests -v
 
 ## 页面操作
 
+- 顶部“独立问诊”右侧的“帮助文档”：快速开始、病历录入、导入与示例、诊断建议、问诊与思考、常见问题与快捷键。文档支持目录导航与章节链接，地址为 `/static/help.html`。
 - 顶部“导入病历”：粘贴病历原文，识别后替换当前表单；导入后请核对。
 - 顶部“示例病例”：打开导入窗口并载入原有示例，点击“识别填充”后才替换表单。导入窗口内的“载入示例”按钮保留。
 - 左侧“本次病历”：初诊/复诊、性别、年龄以及六项病历文本，两列显示；常用办公分辨率下无需滚动即可看到全部。
@@ -58,7 +59,7 @@ python -m unittest discover -s tests -v
 
 ## 开发位置
 
-`app.py` 是 FastAPI 服务；`web/diagnosis.html`、`diagnosis.js`、`diagnosis.css` 为工作台；`web/index.html`、`chat.js`、`chat.css` 为独立问诊；`web/theme.css` 提供公共样式。
+`app.py` 是 FastAPI 服务；`web/diagnosis.html`、`diagnosis.js`、`diagnosis.css` 为工作台；`web/index.html`、`chat.js`、`chat.css` 为独立问诊；`web/help.html`、`help.js`、`help.css` 为帮助文档；`web/theme.css` 提供公共样式。
 
 更完整的目录、历史与待办见上级目录的 `项目梳理_2026-10-14.md`。修改前代码保存在上级 `_review/2026-10-14/warm_ui_before.zip`，其中不含 `.env`。
 
