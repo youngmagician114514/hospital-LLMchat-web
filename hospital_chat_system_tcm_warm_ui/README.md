@@ -1,6 +1,8 @@
 # 颈椎病辅助诊疗工作台
 
-当前版本：v0.9.1。
+当前版本：v0.9.2。
+
+v0.9.2 补充本地 Qwen 模型的思考开关，兼容 vLLM 返回的 `reasoning` 和 `reasoning_content`，并提供四组单卡启动配置。
 
 v0.9.1 在诊断提示词中加入病例与输出示例，原文保存在 `prompts/diagnosis_example.json`。示例完整发送给诊断接口，用于示范辨证与方药表达；实际结果仍使用西医诊断、主证、兼证、方药、理由五项结构。
 
@@ -127,6 +129,38 @@ bash scripts/start_vllm_server.sh
 ```bash
 python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+### 单卡 Qwen 启动配置
+
+`scripts/start_vllm_profile.py` 每次启动一个模型，使用 `scripts/vllm_profiles.json` 中的配置。原有 Qwen2.5 启动脚本继续保留。
+
+| 配置名 | 检查点 | 权重精度 | 上下文长度 | 最大并发序列数 |
+| --- | --- | --- | --- | --- |
+| `qwen3.5-4b-bf16` | [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) | BF16 | 8192 | 4 |
+| `qwen3.5-9b-int4` | [QuantTrio/Qwen3.5-9B-AWQ](https://huggingface.co/QuantTrio/Qwen3.5-9B-AWQ) | AWQ INT4 | 8192 | 4 |
+| `qwen3-14b-int4` | [Qwen/Qwen3-14B-AWQ](https://huggingface.co/Qwen/Qwen3-14B-AWQ) | AWQ INT4 | 8192 | 4 |
+| `qwen3.8-27b-int4` | [cyankiwi/Qwen3.8-27B-AWQ-INT4](https://huggingface.co/cyankiwi/Qwen3.8-27B-AWQ-INT4) | INT4，compressed-tensors 格式 | 4096 | 1 |
+
+9B 和 27B 采用社区量化检查点，14B 采用 Qwen 官方量化检查点。表中并发列为启动参数。三个视觉语言模型按纯文本模式加载，INT4 权重的运算精度为 BF16 或 FP16。
+
+在安装新版 vLLM 的独立 Python 环境中启动，例如：
+
+```bash
+python scripts/start_vllm_profile.py qwen3.5-9b-int4 --model-root /path/to/models
+```
+
+`--model-root` 下按配置名分别保存模型文件。不指定该参数时，通过 ModelScope 读取对应仓库。可用 `--max-model-len`、`--max-num-seqs` 调整上下文与并发序列数，`--dry-run` 查看启动命令。接口默认监听 `127.0.0.1:8001`，返回的模型名与配置名一致。
+
+连接该模型的应用进程示例：
+
+```bash
+MODEL_PROVIDER=vllm_openai VLLM_MODEL=qwen3.5-9b-int4 \
+VLLM_API_BASE=http://127.0.0.1:8001/v1 VLLM_API_KEY=EMPTY \
+GENERATION_MAX_TOKENS=1024 THINKING_MAX_TOKENS=2048 \
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+Qwen3 和 Qwen3.5 使用 `enable_thinking` 切换思考开关，三个开启档位共用思考模式。Qwen3.8 的中、高、超高分别对应 `low`、`medium`、`xhigh`。应用会分别读取 `reasoning` 或 `reasoning_content`，通过已有折叠区显示思考流。协议依据：[vLLM 思考输出文档](https://docs.vllm.ai/en/stable/features/reasoning_outputs/)、[Qwen3.8 模型说明](https://huggingface.co/Qwen/Qwen3.8-27B)。
 
 ## 4. 输出格式约束
 

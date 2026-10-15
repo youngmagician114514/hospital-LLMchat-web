@@ -250,6 +250,45 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             parts = [part async for part in self.provider.generate_stream(self.messages, thinking_level='high')]
         self.assertEqual(parts, ['local answer'])
 
+    def test_vllm_qwen_thinking_template_is_only_enabled_for_qwen3_models(self):
+        for model in ['qwen3.5-4b-bf16', 'QuantTrio/Qwen3.5-9B-AWQ', 'qwen3-14b-int4', 'qwen3.8-27b-int4', 'qwen2.5-7b-instruct']:
+            with self.subTest(model=model), patch.object(app, 'settings', replace(app.settings, model_provider='vllm_openai', vllm_model=model)):
+                provider = app.build_provider()
+                for level in ['off', 'low', 'high', 'max']:
+                    payload = provider._build_payload(self.messages, stream=True, thinking_level=level)
+                    if model == 'qwen2.5-7b-instruct':
+                        self.assertNotIn('chat_template_kwargs', payload)
+                    else:
+                        self.assertEqual(payload['chat_template_kwargs'], {'enable_thinking': level != 'off'})
+                        if level != 'off':
+                            self.assertGreaterEqual(payload['max_tokens'], app.settings.thinking_max_tokens)
+                    if model.startswith('qwen3.8') and level != 'off':
+                        self.assertEqual(payload['reasoning_effort'], {'low':'low','high':'medium','max':'xhigh'}[level])
+                    else:
+                        self.assertNotIn('reasoning_effort', payload)
+                    self.assertNotIn('thinking', payload)
+
+    async def test_modern_vllm_reasoning_field_stays_separate_and_is_not_duplicated(self):
+        async def handler(request):
+            return httpx.Response(200, text=(
+                'data: {"choices":[{"delta":{"reasoning":"modern reasoning"}}]}\n\n'
+                'data: {"choices":[{"delta":{"reasoning_content":"shared","reasoning":"shared"}}]}\n\n'
+                'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+                'data: [DONE]\n\n'
+            ))
+        with self.mock_client(handler):
+            parts = [part async for part in self.provider.generate_stream(self.messages)]
+        self.assertEqual(parts, [app.ReasoningDelta('modern reasoning'), app.ReasoningDelta('shared'), 'answer'])
+
+    async def test_modern_vllm_reasoning_is_kept_in_stream_fallback(self):
+        async def handler(request):
+            if json.loads(request.content).get('stream'):
+                raise httpx.ReadError('synthetic stream unavailable')
+            return httpx.Response(200, json={'choices':[{'message':{'reasoning':'modern fallback reasoning','content':'answer'}}]})
+        with self.mock_client(handler):
+            parts = [part async for part in self.provider.generate_stream(self.messages)]
+        self.assertEqual(parts, [app.ReasoningDelta('modern fallback reasoning'), 'answer'])
+
     async def test_stream_and_regular_share_limit(self):
         active = peak = 0
         async def handler(request):

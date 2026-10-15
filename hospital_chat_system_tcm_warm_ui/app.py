@@ -593,6 +593,7 @@ class OpenAICompatibleProvider:
         temperature: float,
         top_p: float,
         max_tokens: int,
+        qwen_chat_template: bool = False,
     ) -> None:
         self.model_name = model
         self._base_url = base_url.rstrip("/")
@@ -601,6 +602,7 @@ class OpenAICompatibleProvider:
         self._temperature = temperature
         self._top_p = top_p
         self._max_tokens = max_tokens
+        self._qwen_chat_template = qwen_chat_template
         # Share the upstream limit across diagnosis, dialogue and form import.
         self._request_slots = asyncio.Semaphore(max(1, settings.max_concurrent_model_calls))
 
@@ -623,6 +625,12 @@ class OpenAICompatibleProvider:
                 payload.pop("temperature")
                 payload.pop("top_p")
                 payload["max_tokens"] = max(self._max_tokens, settings.thinking_max_tokens)
+        elif self._qwen_chat_template:
+            payload["chat_template_kwargs"] = {"enable_thinking": thinking_level != "off"}
+            if thinking_level != "off":
+                payload["max_tokens"] = max(self._max_tokens, settings.thinking_max_tokens)
+                if self.model_name.rsplit("/", 1)[-1].lower().startswith("qwen3.8"):
+                    payload["reasoning_effort"] = {"low": "low", "high": "medium", "max": "xhigh"}[thinking_level]
         return payload
 
     def _build_headers(self) -> dict[str, str]:
@@ -653,7 +661,7 @@ class OpenAICompatibleProvider:
 
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("Empty response from model provider")
-        reasoning = message.get("reasoning_content", "")
+        reasoning = message.get("reasoning_content") or message.get("reasoning", "")
         return content.strip(), reasoning if isinstance(reasoning, str) else ""
 
     async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str | ReasoningDelta]:
@@ -683,7 +691,7 @@ class OpenAICompatibleProvider:
                             if not choices:
                                 continue
                             delta = choices[0].get("delta") or {}
-                            reasoning = delta.get("reasoning_content", "")
+                            reasoning = delta.get("reasoning_content") or delta.get("reasoning", "")
                             if isinstance(reasoning, str) and reasoning:
                                 emitted = True
                                 yield ReasoningDelta(reasoning)
@@ -790,6 +798,7 @@ def _build_openai_compat_provider(
     api_key: str,
     model: str,
     provider_name: str,
+    qwen_chat_template: bool = False,
 ) -> LLMProvider:
     if not base_url:
         raise RuntimeError(f"{provider_name} base url is empty")
@@ -802,6 +811,7 @@ def _build_openai_compat_provider(
         temperature=settings.generation_temperature,
         top_p=settings.generation_top_p,
         max_tokens=settings.generation_max_tokens,
+        qwen_chat_template=qwen_chat_template,
     )
 
 
@@ -814,6 +824,7 @@ def build_provider() -> LLMProvider:
             api_key=settings.vllm_api_key,
             model=settings.vllm_model,
             provider_name="vLLM(OpenAI-compatible)",
+            qwen_chat_template=settings.vllm_model.rsplit("/", 1)[-1].lower().startswith("qwen3"),
         )
 
     if provider == "openai_compat":
@@ -1107,7 +1118,7 @@ form_autofill_service = FormAutofillService(
     max_concurrent_calls=settings.max_concurrent_model_calls,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.9.1")
+app = FastAPI(title="Hospital Intranet Chat System", version="0.9.2")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
