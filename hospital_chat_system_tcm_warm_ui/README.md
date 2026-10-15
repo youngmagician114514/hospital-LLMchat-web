@@ -124,6 +124,8 @@ VLLM_MODEL=qwen2.5-7b-instruct
 bash scripts/start_vllm_server.sh
 ```
 
+默认读取 `$HOME/hospital_model_tests/models/qwen2.5-7b-instruct`。可通过 `VLLM_MODEL_ROOT` 指定模型根目录，或用 `VLLM_MODEL_PATH` 指定完整模型路径。
+
 再启动应用：
 
 ```bash

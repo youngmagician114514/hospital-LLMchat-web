@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL_PATH="${VLLM_MODEL_PATH:-/home/lwb/Decoding/mydecoding/mydecoding/base_model/qwen/Qwen2___5-7B-Instruct}"
+MODEL_ROOT="${VLLM_MODEL_ROOT:-${HOME}/hospital_model_tests/models}"
+MODEL_PATH="${VLLM_MODEL_PATH:-${MODEL_ROOT}/qwen2.5-7b-instruct}"
 SERVED_NAME="${VLLM_SERVED_MODEL_NAME:-qwen2.5-7b-instruct}"
 HOST="${VLLM_HOST:-0.0.0.0}"
 PORT="${VLLM_PORT:-8001}"
