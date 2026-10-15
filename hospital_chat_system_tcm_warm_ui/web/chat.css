@@ -29,7 +29,6 @@
 .composer-tools { display: flex; justify-content: flex-end; margin-top: 8px; }
 .composer .send-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; padding: 7px; }
 .composer .send-btn:disabled { background: #e9edeb; border-color: #e9edeb; color: #a6b3ad; opacity: 1; }
-.dialogue-note { text-align: center; color: #92999f; font-size: 12px; margin: 10px 0 0; }
 @keyframes blink { 50% { opacity: .3; } }
 @media (max-width: 700px) {
   .chat-page .top-nav { height: auto; padding: 12px 16px 0; gap: 10px 18px; }
