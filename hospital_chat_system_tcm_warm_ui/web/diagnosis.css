@@ -33,7 +33,7 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .form-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 16px; }
 .patient-basics { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 24px; align-items: start; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .visit-field { display: flex; flex-direction: column; gap: 5px; }
-.field-title, .field > span { font-size: 13px; font-weight: 600; color: #344e40; }
+.field-title, .field > span { font-size: 14px; font-weight: 500; color: #344e40; }
 .visit-switch { display: inline-flex; background: #edf3ef; border: 1px solid #dbe5de; padding: 2px; border-radius: 6px; }
 .visit-option { cursor: pointer; position: relative; flex: 1; }
 .visit-option input { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); }
@@ -44,11 +44,11 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .clinical-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 18px; }
 .field { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .field-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.field-heading label { color: #344e40; font-size: 13px; font-weight: 600; }
+.field-heading label { color: #344e40; font-size: 14px; font-weight: 500; }
 .field-expand { border: 0; background: transparent; color: #4a7e61; font-size: 11px; line-height: 1.8; padding: 0 2px; }
 .field-expand:hover { color: var(--accent); text-decoration: underline; }
 .assist-modal.field-editor { width: min(850px, calc(100vw - 32px)); }
-#fieldEditorInput { display: block; width: 100%; min-height: 280px; max-height: 55dvh; resize: vertical; padding: 14px; border: 1px solid #b5cfbe; border-radius: 6px; color: var(--text); font: 14px/1.9 "Segoe UI", "Microsoft YaHei", sans-serif; outline: none; }
+#fieldEditorInput { display: block; width: 100%; min-height: 280px; max-height: 55dvh; resize: vertical; padding: 14px; border: 1px solid #b5cfbe; border-radius: 6px; color: var(--text); font: 14px/1.7 var(--font-sans); outline: none; }
 #fieldEditorInput:focus { border-color: var(--accent); }
 .field-editor-actions { display: flex; align-items: center; gap: 8px; }
 .field-editor-actions > span { margin-right: auto; font-size: 11px; }
@@ -56,7 +56,7 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .field input:not([type=file]), .field select { height: 34px; padding-top: 3px; padding-bottom: 3px; }
 .field textarea { height: clamp(76px, 11dvh, 104px); min-height: 76px; max-height: 104px; resize: none; overflow-y: auto; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: #498f76; box-shadow: 0 0 0 2px #147d7010; }
-.field input::placeholder, .field textarea::placeholder { color: #7b8f81; font-size: 12px; }
+.field input::placeholder, .field textarea::placeholder { color: #7b8f81; font-size: inherit; }
 .followup-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .followup-fields .full { grid-column: 1 / -1; }
 .followup-fields textarea { height: 112px; max-height: 112px; }
@@ -146,7 +146,6 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .composer-actions .minor-btn { border: 0; padding-left: 0; color: #577761; background: none; }
 .chat-status { padding: 0 12px 10px; color: #6f8877; font-size: 10px; text-align: center; }
-.upload-note { margin: 4px 0 12px; color: #617b6a; font-size: 12px; }
 .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .upload-box { min-width: 0; padding: 16px; border: 1px dashed #a8c7b3; border-radius: 8px; }
 .upload-box label { display: block; font-size: 13px; color: #46614e; margin-bottom: 12px; }
@@ -228,7 +227,7 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .modal-block h4 { margin:0 0 9px; font-size:12px; font-weight:500; }
 .modal-block p { font-size:12px; line-height:1.8; white-space:pre-wrap; }
 .import-modal-tip { color:var(--muted); font-size:11px !important; margin:0 0 15px; }
-#bulkImportInput { display:block; width:100%; border:1px solid var(--line-strong); padding:14px; border-radius:8px; resize:vertical; min-height:220px; font-size:12px; line-height:1.9; outline:0; }
+#bulkImportInput { display:block; width:100%; border:1px solid var(--line-strong); padding:14px; border-radius:8px; resize:vertical; min-height:220px; font-size:14px; line-height:1.7; outline:0; }
 #bulkImportInput:focus { border-color:var(--accent); }
 .import-modal.is-recognizing #bulkImportInput { min-height: 96px; height: 96px; resize: none; }
 .import-modal-foot { margin-top:10px; display:flex; justify-content:space-between; gap:10px; align-items:center; color:var(--muted); }
@@ -236,7 +235,7 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .import-modal-foot small { font-size:10px; }
 .import-progress { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 .import-progress h4 { margin: 0 0 8px; font-size: 12px; color: #405d48; }
-.import-progress pre { margin: 0; padding: 12px; border-radius: 6px; background: #f3f8f4; font: 13px/1.8 "Segoe UI", "Microsoft YaHei", sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; }
+.import-progress pre { margin: 0; padding: 12px; border-radius: 6px; background: #f3f8f4; font: 14px/1.7 var(--font-sans); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; }
 .import-progress.is-streaming pre::after { content: "▏"; color: var(--accent); animation: pulse .8s infinite; }
 .modal-foot { padding:16px 24px; background:#f9fbfa; border-top:1px solid var(--line); color:var(--muted); font-size:11px; }
 .import-modal-actions { display:flex; gap:8px; }

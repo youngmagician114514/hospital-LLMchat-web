@@ -6,7 +6,6 @@ const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const quickNewChatBtn = document.getElementById("quickNewChatBtn");
 const modelChip = document.getElementById("modelChip");
-const currentTimeNode = document.getElementById("currentTime");
 const DIALOGUE_SESSION_KEY = "hospital_dialogue_session_id";
 const CHAT_PAGE_MARKER_KEY = "hospital_last_chat_page";
 const CHAT_PAGE_CURRENT = "independent_dialogue";
@@ -182,8 +181,7 @@ async function streamReply(userText) {
     sessionId = doneEvent.session_id || sessionId;
     localStorage.setItem(DIALOGUE_SESSION_KEY, sessionId);
     localHistory = doneEvent.history || [];
-    const meta = ModelControls.formatMeta(doneEvent);
-    await streamNode.finalize(doneEvent.reply || "", meta);
+    await streamNode.finalize(doneEvent.reply || "");
   } catch (err) {
     streamNode.fail(`请求失败：${err.message}`);
   } finally {
@@ -246,11 +244,6 @@ async function refreshHealth() {
   }
 }
 
-function refreshClock() {
-  if (!currentTimeNode) return;
-  currentTimeNode.textContent = new Date().toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "short" });
-}
-
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await sendMessage();
@@ -262,7 +255,7 @@ messageInput.addEventListener("input", () => {
 });
 
 messageInput.addEventListener("keydown", async (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
     await sendMessage();
   }
@@ -278,9 +271,7 @@ if (quickNewChatBtn) {
 resizeInput();
 refreshSendStyle();
 refreshHealth();
-refreshClock();
 if (shouldForceNewDialogueSession) {
   startNewChat();
 }
 setInterval(refreshHealth, 20000);
-setInterval(refreshClock, 1000);

@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>独立问诊 · 颈椎病辅助诊疗</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20261014_1">
-  <link rel="stylesheet" href="/static/theme.css?v=20261014_1">
-  <link rel="stylesheet" href="/static/chat.css?v=20261014_1">
+  <link rel="stylesheet" href="/static/theme.css?v=20261015_type_1">
+  <link rel="stylesheet" href="/static/chat.css?v=20261015_dialogue_1">
 </head>
 <body>
   <div class="chat-page">
     <header class="top-nav">
       <div class="brand-area">
         <span class="brand-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 4h3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-        <div class="brand-text"><strong>颈椎病辅助诊疗</strong><small>门诊工作台</small></div>
+        <div class="brand-text"><strong>颈椎病辅助诊疗</strong></div>
       </div>
 
       <nav class="primary-nav" aria-label="一级导航">
@@ -22,7 +22,6 @@
       </nav>
 
       <div class="nav-meta">
-        <span id="currentTime" class="meta-chip">--</span>
         <span id="modelChip" class="meta-chip">连接中</span>
         <div id="thinkingControls" class="thinking-controls" role="group" aria-label="思考强度">
           <span>思考</span><button type="button" data-thinking="off" aria-pressed="false">关闭</button><button type="button" data-thinking="low" aria-pressed="true">中</button><button type="button" data-thinking="high" aria-pressed="false">高</button><button type="button" data-thinking="max" aria-pressed="false">超高</button>
@@ -31,20 +30,22 @@
     </header>
 
     <main class="dialogue-workspace">
+      <div class="dialogue-toolbar">
+        <button type="button" id="quickNewChatBtn" class="new-chat-btn"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>新会话</button>
+      </div>
       <section class="dialogue-card">
         <section id="chatMain" class="chat-main is-empty">
-          <div class="chat-empty-title"><span class="assistant-mark" aria-hidden="true">✳</span><h1>独立问诊</h1><p>输入症状或问题，开始本次问诊。</p><small>此页不带入工作台病历。</small></div>
-          <section id="chatLog" class="chat-log"></section>
+          <div class="chat-empty-title"><h1>独立问诊</h1></div>
+          <section id="chatLog" class="chat-log" aria-label="会话内容" role="log"></section>
         </section>
 
         <footer class="input-dock">
           <form id="chatForm" class="composer">
-            <textarea id="messageInput" rows="1" placeholder="描述症状或输入问题…" required></textarea>
+            <textarea id="messageInput" rows="1" placeholder="输入问题" aria-label="输入问题" required></textarea>
             <div class="composer-tools">
-              <button type="button" id="quickNewChatBtn" class="minor-btn">新会话</button>
-              <button type="submit" id="sendBtn" class="send-btn">发送</button>
+              <button type="submit" id="sendBtn" class="send-btn" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
-          </form><p class="dialogue-note">仅供参考 · Enter 发送，Shift + Enter 换行</p>
+          </form><p class="dialogue-note">仅供参考</p>
         </footer>
       </section>
     </main>
@@ -52,6 +53,6 @@
 
   <script src="/static/model_controls.js?v=20261014_thinking_1"></script>
   <script src="/static/streaming.js?v=20261014_stream_2"></script>
-  <script src="/static/chat.js?v=20261014_stream_2"></script>
+  <script src="/static/chat.js?v=20261015_dialogue_1"></script>
 </body>
 </html>
