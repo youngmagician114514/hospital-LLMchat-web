@@ -2,8 +2,8 @@
 set -euo pipefail
 
 MODEL_ROOT="${VLLM_MODEL_ROOT:-${HOME}/hospital_model_tests/models}"
-MODEL_PATH="${VLLM_MODEL_PATH:-${MODEL_ROOT}/qwen2.5-7b-instruct}"
-SERVED_NAME="${VLLM_SERVED_MODEL_NAME:-qwen2.5-7b-instruct}"
+MODEL_PATH="${VLLM_MODEL_PATH:-${MODEL_ROOT}/qwen2.5-7b-bf16}"
+SERVED_NAME="${VLLM_SERVED_MODEL_NAME:-qwen2.5-7b-bf16}"
 HOST="${VLLM_HOST:-0.0.0.0}"
 PORT="${VLLM_PORT:-8001}"
 TP_SIZE="${VLLM_TENSOR_PARALLEL_SIZE:-1}"

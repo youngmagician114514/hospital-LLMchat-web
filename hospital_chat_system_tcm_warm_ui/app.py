@@ -83,7 +83,7 @@ class Settings:
     # vLLM decoupled config
     vllm_api_base: str = os.getenv("VLLM_API_BASE", "http://127.0.0.1:8001/v1").strip()
     vllm_api_key: str = os.getenv("VLLM_API_KEY", "").strip()
-    vllm_model: str = os.getenv("VLLM_MODEL", "qwen2.5-7b-instruct").strip()
+    vllm_model: str = os.getenv("VLLM_MODEL", "qwen2.5-7b-bf16").strip()
 
     # Shared inference params for OpenAI-compatible backends
     generation_temperature: float = _float_env("GENERATION_TEMPERATURE", 0.2)

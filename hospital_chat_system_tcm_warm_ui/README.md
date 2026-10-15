@@ -115,7 +115,7 @@ python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 MODEL_PROVIDER=vllm_openai
 VLLM_API_BASE=http://127.0.0.1:8001/v1
 VLLM_API_KEY=EMPTY
-VLLM_MODEL=qwen2.5-7b-instruct
+VLLM_MODEL=qwen2.5-7b-bf16
 ```
 
 先启动 vLLM：
@@ -124,7 +124,7 @@ VLLM_MODEL=qwen2.5-7b-instruct
 bash scripts/start_vllm_server.sh
 ```
 
-默认读取 `$HOME/hospital_model_tests/models/qwen2.5-7b-instruct`。可通过 `VLLM_MODEL_ROOT` 指定模型根目录，或用 `VLLM_MODEL_PATH` 指定完整模型路径。
+默认读取 `$HOME/hospital_model_tests/models/qwen2.5-7b-bf16`。可通过 `VLLM_MODEL_ROOT` 指定模型根目录，或用 `VLLM_MODEL_PATH` 指定完整模型路径。
 
 再启动应用：
 
@@ -144,6 +144,8 @@ python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 | `qwen3.8-27b-int4` | [cyankiwi/Qwen3.8-27B-AWQ-INT4](https://huggingface.co/cyankiwi/Qwen3.8-27B-AWQ-INT4) | INT4，compressed-tensors 格式 | 4096 | 1 |
 
 9B 和 27B 采用社区量化检查点，14B 采用 Qwen 官方量化检查点。表中并发列为启动参数。三个视觉语言模型按纯文本模式加载，INT4 权重的运算精度为 BF16 或 FP16。
+
+本地目录与服务别名统一为“型号-规模-权重精度”，已有 Qwen2.5-7B 对应 `qwen2.5-7b-bf16`。官方仓库名保持原样。上述四个检查点均为后训练的对话与指令版本；`bf16`、`int4` 表示权重精度，`Instruct` 是部分官方型号采用的命名后缀。
 
 在安装新版 vLLM 的独立 Python 环境中启动，例如：
 

@@ -251,12 +251,12 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(parts, ['local answer'])
 
     def test_vllm_qwen_thinking_template_is_only_enabled_for_qwen3_models(self):
-        for model in ['qwen3.5-4b-bf16', 'QuantTrio/Qwen3.5-9B-AWQ', 'qwen3-14b-int4', 'qwen3.8-27b-int4', 'qwen2.5-7b-instruct']:
+        for model in ['qwen3.5-4b-bf16', 'QuantTrio/Qwen3.5-9B-AWQ', 'qwen3-14b-int4', 'qwen3.8-27b-int4', 'qwen2.5-7b-bf16']:
             with self.subTest(model=model), patch.object(app, 'settings', replace(app.settings, model_provider='vllm_openai', vllm_model=model)):
                 provider = app.build_provider()
                 for level in ['off', 'low', 'high', 'max']:
                     payload = provider._build_payload(self.messages, stream=True, thinking_level=level)
-                    if model == 'qwen2.5-7b-instruct':
+                    if model == 'qwen2.5-7b-bf16':
                         self.assertNotIn('chat_template_kwargs', payload)
                     else:
                         self.assertEqual(payload['chat_template_kwargs'], {'enable_thinking': level != 'off'})
