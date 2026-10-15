@@ -43,7 +43,7 @@ def main() -> None:
         "--enforce-eager",
     ]
     if profile["text_only"]:
-        command.append("--language-model-only")
+        command.extend(["--limit-mm-per-prompt", json.dumps({"image": 0, "video": 0})])
     if args.dry_run:
         print(json.dumps(command, ensure_ascii=False))
         return
