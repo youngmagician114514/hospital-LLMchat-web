@@ -98,7 +98,8 @@ function createStreamingBubble(initialText = "回复中…") {
   const bubble = document.createElement("div");
   bubble.className = "bubble streaming";
   bubble.textContent = initialText;
-  row.appendChild(bubble);
+  const reasoning = StreamUI.createReasoningPanel({ onUpdate: scrollToBottom });
+  row.append(reasoning.element, bubble);
 
   chatLog.appendChild(row);
   scrollToBottom();
@@ -108,15 +109,23 @@ function createStreamingBubble(initialText = "回复中…") {
     scrollToBottom();
   });
   return {
+    pushReasoning(delta) {
+      if (!writer.getText()) bubble.hidden = true;
+      reasoning.push(delta);
+    },
     push(delta) {
+      reasoning.complete();
+      bubble.hidden = false;
       writer.push(delta);
       bubble.classList.add("streaming");
       scrollToBottom();
     },
     async finalize(text, meta) {
+      await reasoning.finish();
       if (!writer.getText() && text) writer.push(text);
       await writer.finish();
       bubble.classList.remove("streaming");
+      bubble.hidden = false;
       bubble.textContent = text;
       if (meta) {
         const metaDiv = document.createElement("div");
@@ -127,9 +136,11 @@ function createStreamingBubble(initialText = "回复中…") {
       scrollToBottom();
     },
     fail(detail) {
+      reasoning.fail();
       writer.stop();
       row.className = "row assistant";
       bubble.classList.remove("streaming");
+      bubble.hidden = false;
       bubble.textContent = [writer.getText(), detail].filter(Boolean).join("\n\n");
       scrollToBottom();
     }
@@ -167,7 +178,9 @@ async function streamReply(userText) {
 
     let doneEvent = null;
     for await (const event of StreamUI.readEvents(res)) {
-      if (event.type === "token" && event.delta) {
+      if (event.type === "reasoning" && event.delta) {
+        streamNode.pushReasoning(event.delta);
+      } else if (event.type === "token" && event.delta) {
         streamNode.push(event.delta);
       } else if (event.type === "done") {
         doneEvent = event;

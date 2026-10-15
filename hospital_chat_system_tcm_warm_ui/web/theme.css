@@ -48,3 +48,10 @@ svg { display:block; width:100%; height:100%; }
 .thinking-controls button:hover:not(:disabled):not([aria-pressed=true]) { background: #e4f0e9; color: var(--accent); }
 @media(max-width:1150px) { .nav-meta #currentTime { display: none; } .nav-meta { gap: 10px; } }
 @media(max-width:700px) { .top-nav { height: auto; flex-wrap: wrap; } .nav-meta { flex-basis: 100%; margin: 3px 0 8px; } .thinking-controls { margin-left: auto; } .thinking-controls button { padding: 4px 7px; } }
+.reasoning-panel { min-width:0; margin:0 0 12px; }
+.reasoning-panel > summary { cursor:pointer; padding:4px 0; color:#677b72; font-size:13px; line-height:1.6; }
+.reasoning-panel > summary::marker { color:#8da599; }
+.reasoning-state { margin-left:8px; font-size:11px; color:#9ba69f; }
+.reasoning-panel[data-state=streaming] .reasoning-state { color:var(--accent); animation:reasoning-pulse 1.4s infinite; }
+.reasoning-content { margin-top:8px; padding:2px 0 2px 12px; border-left:2px solid #dfe8e3; max-height:220px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; color:#6b7a73; font:13px/1.75 var(--font-sans); }
+@keyframes reasoning-pulse { 50% { opacity:.45; } }

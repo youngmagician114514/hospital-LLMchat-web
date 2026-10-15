@@ -137,7 +137,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         fields = app._extract_complete_json_fields('{"unknown":{"patientAge":99},"patientAge":24,')
         self.assertEqual(fields, {'patientAge':24})
 
-    async def test_reasoning_chunks_do_not_enter_final_answer(self):
+    async def test_reasoning_chunks_are_separate_from_content(self):
         async def handler(request):
             return httpx.Response(200, text=(
                 'data: {"choices":[{"delta":{"reasoning_content":"synthetic reasoning"}}]}\n\n'
@@ -146,7 +146,82 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             ))
         with self.mock_client(handler):
             parts = [part async for part in self.provider.generate_stream(self.messages, thinking_level='high')]
-        self.assertEqual(parts, ['answer'])
+        self.assertEqual(parts, [app.ReasoningDelta('synthetic reasoning'), 'answer'])
+
+    async def test_all_stream_routes_separate_reasoning_from_results_and_history(self):
+        reasoning = 'synthetic reasoning: {"patientAge":99}'
+        async def handler(request):
+            payload = json.loads(request.content)
+            content = '{"chiefComplaint":"软件测试"}' if payload['messages'][0]['content'] == app.FORM_IMPORT_SYSTEM_PROMPT else '软件测试正文'
+            wire = ''.join('data: '+json.dumps({'choices':[{'delta':delta}]})+'\n\n' for delta in [
+                {'reasoning_content': reasoning[:10]}, {'reasoning_content': reasoning[10:]}, {'content':content}])
+            return httpx.Response(200, text=wire+'data: [DONE]\n\n')
+        with ExitStack() as stack:
+            for service in [app.diagnosis_service, app.dialogue_service, app.workspace_dialogue_service, app.form_autofill_service]:
+                stack.enter_context(patch.object(service, '_provider', self.provider))
+            stack.enter_context(self.mock_client(handler))
+            async with REAL_CLIENT(transport=httpx.ASGITransport(app=app.app), base_url='http://test') as client:
+                for route in ['/api/chat/stream', '/api/dialogue/chat/stream', '/api/workspace/chat/stream', '/api/form/autofill/stream']:
+                    body = {'source_text':'软件识别测试，不包含患者资料'} if '/autofill/' in route else {'message':'软件测试'}
+                    response = await client.post(route, json={**body,'thinking_level':'high'})
+                    self.assertEqual(response.status_code, 200)
+                    events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+                    self.assertEqual(''.join(e['delta'] for e in events if e['type']=='reasoning'), reasoning)
+                    self.assertEqual(events[-1]['type'], 'done')
+                    self.assertNotIn('synthetic reasoning', json.dumps(events[-1]))
+                    self.assertFalse(any('synthetic reasoning' in e.get('delta','') for e in events if e['type']=='token'))
+                    if '/autofill/' in route:
+                        self.assertEqual(events[-1]['data']['patientAge'], '')
+                        self.assertEqual(events[-1]['data']['chiefComplaint'], '软件测试')
+
+    async def test_reasoning_interruption_does_not_retry_or_complete(self):
+        calls = 0
+        class BrokenStream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                yield b'data: {"choices":[{"delta":{"reasoning_content":"partial reasoning"}}]}\n\n'
+                raise httpx.ReadError('synthetic disconnect')
+        async def handler(request):
+            nonlocal calls
+            calls += 1
+            return httpx.Response(200, stream=BrokenStream())
+        with patch.object(app.dialogue_service, '_provider', self.provider), self.mock_client(handler):
+            events = [e async for e in app.dialogue_service.chat_stream(app.ChatRequest(message='软件测试'))]
+        self.assertEqual(events[0], {'type':'reasoning','delta':'partial reasoning'})
+        self.assertEqual(events[-1]['type'], 'error')
+        self.assertFalse(any(e['type']=='done' for e in events))
+        self.assertEqual(calls, 1)
+
+    async def test_reasoning_without_answer_does_not_start_second_request(self):
+        calls = 0
+        async def handler(request):
+            nonlocal calls
+            calls += 1
+            return httpx.Response(200, text='data: {"choices":[{"delta":{"reasoning_content":"only reasoning"}}]}\n\ndata: [DONE]\n\n')
+        with patch.object(app.dialogue_service, '_provider', self.provider), self.mock_client(handler):
+            events = [e async for e in app.dialogue_service.chat_stream(app.ChatRequest(message='软件测试'))]
+        self.assertEqual(events[-1]['type'], 'error')
+        self.assertEqual(calls, 1)
+
+    async def test_stream_fallback_keeps_reasoning_separate(self):
+        async def handler(request):
+            if json.loads(request.content).get('stream'):
+                raise httpx.ReadError('synthetic stream unavailable')
+            return httpx.Response(200, json={'choices':[{'message':{'reasoning_content':'fallback reasoning','content':'answer'}}]})
+        with self.mock_client(handler):
+            parts = [part async for part in self.provider.generate_stream(self.messages)]
+        self.assertEqual(parts, [app.ReasoningDelta('fallback reasoning'), 'answer'])
+
+    async def test_vllm_plain_stream_stays_compatible(self):
+        self.provider._base_url = 'http://127.0.0.1:8001/v1'
+        self.provider.model_name = 'local-model'
+        async def handler(request):
+            payload = json.loads(request.content)
+            self.assertNotIn('thinking', payload)
+            self.assertNotIn('reasoning_effort', payload)
+            return httpx.Response(200, text='data: {"choices":[{"delta":{"content":"local answer"}}]}\n\ndata: [DONE]\n\n')
+        with self.mock_client(handler):
+            parts = [part async for part in self.provider.generate_stream(self.messages, thinking_level='high')]
+        self.assertEqual(parts, ['local answer'])
 
     async def test_stream_and_regular_share_limit(self):
         active = peak = 0

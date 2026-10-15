@@ -70,5 +70,63 @@
       reader.releaseLock();
     }
   }
-  window.StreamUI = { createWriter, readEvents };
+  function createReasoningPanel({ onUpdate = () => {} } = {}) {
+    const element = document.createElement("details");
+    element.className = "reasoning-panel";
+    const summary = document.createElement("summary");
+    summary.append(document.createTextNode("思考过程"));
+    const state = document.createElement("span");
+    state.className = "reasoning-state";
+    summary.append(state);
+    const content = document.createElement("div");
+    content.className = "reasoning-content";
+    element.append(summary, content);
+    let writer;
+
+    function reset() {
+      writer?.stop();
+      element.hidden = true;
+      element.open = false;
+      element.dataset.state = "idle";
+      state.textContent = "";
+      content.textContent = "";
+      writer = createWriter(text => {
+        const follow = content.scrollHeight - content.scrollTop - content.clientHeight < 24;
+        content.textContent = text;
+        if (follow) content.scrollTop = content.scrollHeight;
+        onUpdate();
+      });
+    }
+    function complete() {
+      if (element.dataset.state === "interrupted") return;
+      element.dataset.state = "done";
+      state.textContent = "已完成";
+    }
+    reset();
+    return {
+      element,
+      reset,
+      push(delta) {
+        if (!delta) return;
+        element.hidden = false;
+        element.dataset.state = "streaming";
+        state.textContent = "进行中";
+        writer.push(delta);
+      },
+      complete,
+      async finish() {
+        // A long, collapsed trace must not delay an already received answer.
+        writer.stop();
+        content.textContent = writer.getText();
+        complete();
+      },
+      fail() {
+        writer.stop();
+        content.textContent = writer.getText();
+        element.dataset.state = "interrupted";
+        state.textContent = "已中断";
+      }
+    };
+  }
+  window.StreamUI = { createWriter, readEvents, createReasoningPanel };
 })();

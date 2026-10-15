@@ -23,6 +23,10 @@ const summaryHint = document.getElementById("summaryHint");
 const followupSection = document.getElementById("sec-followup");
 const streamDraft = document.getElementById("streamDraft");
 const streamBox = document.getElementById("streamBox");
+const diagnosisReasoning = StreamUI.createReasoningPanel();
+document.getElementById("diagnosisReasoning").append(diagnosisReasoning.element);
+const importReasoning = StreamUI.createReasoningPanel();
+document.getElementById("bulkImportReasoning").append(importReasoning.element);
 
 const emptyState = document.getElementById("emptyState");
 const skeletonState = document.getElementById("skeletonState");
@@ -209,7 +213,10 @@ function setResultView(mode) {
   const generating = mode === "generating" || mode === "streaming";
   if (state) state.textContent = generating ? "生成中" : mode === "done" && lastResultText ? "已生成" : "待生成";
   resultAnchor.classList.toggle("is-streaming", mode === "streaming");
-  if (streamBox) streamBox.open = mode === "streaming";
+  if (streamBox) {
+    streamBox.open = mode === "streaming";
+    streamBox.hidden = mode === "generating" || mode === "empty";
+  }
   copyBtn.disabled = mode !== "done" || !lastResultText || resultStale;
   copyBlockButtons.forEach(button => { button.disabled = copyBtn.disabled; });
   emptyState.classList.toggle("hidden", mode !== "empty");
@@ -335,6 +342,7 @@ function renderError(detail) {
 }
 
 function clearOutput() {
+  diagnosisReasoning.reset();
   resultStale = false;
   resultAnchor.classList.remove("has-stale-result");
   outDiagnosis.textContent = "-";
@@ -526,6 +534,7 @@ function resetCaseFormState({ clearImportText = false } = {}) {
 
   if (clearImportText && bulkImportInput) {
     bulkImportInput.value = "";
+    importReasoning.reset();
   }
   if (clearImportText && bulkImportStatus) {
     bulkImportStatus.textContent = "待粘贴";
@@ -784,7 +793,12 @@ async function diagnose() {
 
     let doneEvent = null;
     for await (const event of StreamUI.readEvents(res)) {
-      if (event.type === "token" && typeof event.delta === "string") {
+      if (event.type === "reasoning" && typeof event.delta === "string") {
+        diagnosisReasoning.push(event.delta);
+        skeletonState.classList.add("hidden");
+        document.getElementById("resultState").textContent = "思考中";
+      } else if (event.type === "token" && typeof event.delta === "string") {
+        diagnosisReasoning.complete();
         streamBuffer += event.delta;
         writer.push(event.delta);
       } else if (event.type === "error") {
@@ -799,6 +813,7 @@ async function diagnose() {
       : streamBuffer.trim();
     if (!finalText) throw new Error("模型未返回有效内容");
     if (!streamBuffer) writer.push(finalText);
+    await diagnosisReasoning.finish();
     await writer.finish();
 
     setStreamDraft(finalText);
@@ -818,6 +833,7 @@ async function diagnose() {
       ? ModelControls.formatMeta(doneEvent)
       : "已完成";
   } catch (err) {
+    diagnosisReasoning.fail();
     writer.stop();
     renderError(err.message || "请求失败");
     setStreamDraft(streamBuffer || "生成失败");
@@ -867,6 +883,7 @@ async function runBulkImport({ statusPrefix = "识别完成" } = {}) {
   }
 
   setBulkImportBusy(true);
+  importReasoning.reset();
   if (bulkImportStatus) bulkImportStatus.textContent = ModelControls.getThinkingLevel() === "off" ? "识别中…" : "思考中…";
   bulkImportPreview.hidden = false;
   bulkImportPreview.classList.add("is-streaming");
@@ -896,7 +913,10 @@ async function runBulkImport({ statusPrefix = "识别完成" } = {}) {
 
     let payload = null;
     for await (const event of StreamUI.readEvents(res)) {
-      if (event.type === "field" && labels[event.field] && event.value) {
+      if (event.type === "reasoning" && event.delta) {
+        importReasoning.push(event.delta);
+      } else if (event.type === "field" && labels[event.field] && event.value) {
+        importReasoning.complete();
         writer.push(`${labels[event.field]}：${event.value}\n`);
       } else if (event.type === "done") {
         payload = event;
@@ -905,6 +925,7 @@ async function runBulkImport({ statusPrefix = "识别完成" } = {}) {
       }
     }
     if (!payload) throw new Error("识别连接中断，请重试");
+    await importReasoning.finish();
     await writer.finish();
     const data = payload.data || {};
     if (!hasMeaningfulAutofillData(data)) {
@@ -928,6 +949,7 @@ async function runBulkImport({ statusPrefix = "识别完成" } = {}) {
     }
     closeBulkImportDialog();
   } catch (err) {
+    importReasoning.fail();
     writer.stop();
     if (bulkImportStatus) {
       bulkImportStatus.textContent = `识别失败：${err.message || "未知错误"}`;
@@ -1149,6 +1171,8 @@ function appendAiMessage(role, text, meta = "") {
 
 function createStreamingAiBubble(initialText = "回复中…") {
   const node = appendAiMessage("assistant", initialText, "");
+  const reasoning = StreamUI.createReasoningPanel({ onUpdate: scrollAiChatBottom });
+  node.wrap.prepend(reasoning.element);
   node.bubble.classList.add("streaming");
   const writer = StreamUI.createWriter(text => {
     node.bubble.textContent = text;
@@ -1156,13 +1180,21 @@ function createStreamingAiBubble(initialText = "回复中…") {
   });
 
   return {
+    pushReasoning(delta) {
+      if (!writer.getText()) node.bubble.hidden = true;
+      reasoning.push(delta);
+    },
     push(delta) {
+      reasoning.complete();
+      node.bubble.hidden = false;
       writer.push(delta);
     },
     async finalize(text, meta) {
+      await reasoning.finish();
       if (!writer.getText() && text) writer.push(text);
       await writer.finish();
       node.bubble.classList.remove("streaming");
+      node.bubble.hidden = false;
       node.bubble.textContent = text;
       if (meta) {
         const metaDiv = document.createElement("div");
@@ -1173,8 +1205,10 @@ function createStreamingAiBubble(initialText = "回复中…") {
       scrollAiChatBottom();
     },
     fail(detail) {
+      reasoning.fail();
       writer.stop();
       node.bubble.classList.remove("streaming");
+      node.bubble.hidden = false;
       node.bubble.textContent = [writer.getText(), detail].filter(Boolean).join("\n\n");
       scrollAiChatBottom();
     }
@@ -1230,7 +1264,9 @@ async function streamDialogueReply(userText) {
 
     let doneEvent = null;
     for await (const event of StreamUI.readEvents(res)) {
-      if (event.type === "token" && event.delta) {
+      if (event.type === "reasoning" && event.delta) {
+        streamNode.pushReasoning(event.delta);
+      } else if (event.type === "token" && event.delta) {
         streamNode.push(event.delta);
         aiChatStatus.textContent = "回复中…";
       } else if (event.type === "done") {

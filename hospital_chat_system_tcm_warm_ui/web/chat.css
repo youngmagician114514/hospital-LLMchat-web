@@ -16,6 +16,7 @@
 .dialogue-card:has(.chat-main.is-empty) { justify-content: center; padding-bottom: clamp(40px, 12dvh, 110px); }
 .chat-main.is-empty { flex: 0 0 auto; }
 .row { display: flex; margin-bottom: 28px; }
+.row.assistant { flex-direction: column; align-items: stretch; }
 .row.user { justify-content: flex-end; }
 .bubble { max-width: 100%; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: #252a31; }
 .user .bubble { max-width: 85%; background: #f3f5f5; padding: 10px 16px; border-radius: 14px; }

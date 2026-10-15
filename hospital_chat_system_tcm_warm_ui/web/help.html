@@ -107,11 +107,12 @@
         <h2 id="thinking">思考强度</h2>
         <p>页面顶部提供四个档位：关闭、中、高、超高。关闭时直接回复；开启后，模型会先思考再输出，较高档位可能需要更长时间。</p>
         <p>选择会保存在当前浏览器，工作台与独立问诊共用。导入病历、生成建议和问答都会使用当前档位。</p>
+        <p>有思考内容时，正文上方会出现“思考过程”。点击可展开查看正在生成的内容，再次点击即可收起。诊断建议与病历识别也支持这一操作。</p>
       </article>
       <article data-doc="faq" hidden>
         <h1>常见问题与快捷键</h1>
         <h2 id="waiting">为什么还没有显示回复</h2>
-        <p>开启思考后，模型会先完成思考，再逐步输出正文。等待期间，页面会显示“思考中”。如页面出现请求失败提示，可在请求结束后重试。</p>
+        <p>开启思考后，模型会先思考，再逐步输出正文。有思考内容时，可展开“思考过程”查看。若页面出现请求失败提示，可在请求结束后重试。</p>
         <h2 id="connection">页面显示“服务未连接”</h2>
         <p>确认本机或内网服务已经启动，再刷新页面。如果其他页面也无法访问，请联系维护人员检查服务状态。</p>
         <h2 id="copy-disabled">为什么无法复制结果</h2>
@@ -125,6 +126,11 @@
       </article>
       <article data-doc="changelog" hidden>
         <h1>版本更新</h1>
+        <h2 id="release-v0-9-0">v0.9.0</h2>
+        <ul>
+          <li><strong>思考过程：</strong>诊断建议、病历识别、问诊助手与独立问诊新增折叠区，支持流式查看和展开收起。</li>
+          <li><strong>结果整理：</strong>思考内容与正文分开展示，复制结果和后续对话历史只保留正文。</li>
+        </ul>
         <h2 id="release-v0-8-0">v0.8.0</h2>
         <ul>
           <li><strong>帮助文档：</strong>新增使用指南、常见问题、快捷键与版本记录，支持目录切换和章节定位。</li>
@@ -147,7 +153,7 @@
         <h2 id="release-v0-6-0">v0.6.0</h2>
         <ul><li>加入结构化病历页面与独立对话页面，接入外部模型 API，并优化前端界面。</li></ul>
       </article>
-      <footer class="doc-footer"><p>当前版本 v0.8.0</p><nav id="docPager" aria-label="相邻文档"></nav></footer>
+      <footer class="doc-footer"><p>当前版本 v0.9.0</p><nav id="docPager" aria-label="相邻文档"></nav></footer>
     </main>
     <aside class="docs-outline" aria-label="页面导航"><p>本页内容</p><nav id="pageOutline"></nav></aside>
   </div>

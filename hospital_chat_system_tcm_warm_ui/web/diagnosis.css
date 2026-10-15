@@ -74,6 +74,8 @@ h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 650; }
 .review-tabs button:hover { background: #edf5f0; }
 .output-card { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .output-card > :not(.empty-state) { flex-shrink: 0; }
+.output-card > .reasoning-slot { margin: 12px 16px 0; }
+.output-card > .reasoning-slot:has(.reasoning-panel[hidden]) { margin: 0; }
 .output-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .output-head h2 { font-size: 14px; }
 .output-head .card-title-row { gap: 10px; }

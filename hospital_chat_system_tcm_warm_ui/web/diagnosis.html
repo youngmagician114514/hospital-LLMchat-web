@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>颈椎病辅助诊疗</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20261014_office_1">
-  <link rel="stylesheet" href="/static/theme.css?v=20261015_type_1">
-  <link rel="stylesheet" href="/static/diagnosis.css?v=20261015_type_1">
+  <link rel="stylesheet" href="/static/theme.css?v=20261015_reasoning_1">
+  <link rel="stylesheet" href="/static/diagnosis.css?v=20261015_reasoning_1">
 </head>
 <body>
   <div class="diag-app">
@@ -171,6 +171,7 @@
               </div>
             </div>
 
+            <div id="diagnosisReasoning" class="reasoning-slot"></div>
             <div class="diagnosis-overview"><span>西医诊断</span><p id="summaryConclusion" class="summary-conclusion">待生成</p></div>
 
             <section id="emptyState" class="empty-state">
@@ -318,6 +319,7 @@
             <span id="bulkImportStatus" class="import-status">待粘贴</span>
           </div>
           <section id="bulkImportPreview" class="import-progress" hidden>
+            <div id="bulkImportReasoning"></div>
             <h4>识别结果</h4><pre id="bulkImportStream" aria-live="polite"></pre>
           </section>
         </section>
@@ -331,7 +333,7 @@
   </dialog>
 
   <script src="/static/model_controls.js?v=20261014_thinking_1"></script>
-  <script src="/static/streaming.js?v=20261014_stream_2"></script>
-  <script src="/static/diagnosis.js?v=20261014_stream_2"></script>
+  <script src="/static/streaming.js?v=20261015_reasoning_1"></script>
+  <script src="/static/diagnosis.js?v=20261015_reasoning_1"></script>
 </body>
 </html>

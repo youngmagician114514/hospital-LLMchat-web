@@ -551,13 +551,18 @@ class InMemorySessionStore:
             return len(self._sessions)
 
 
+@dataclass(frozen=True)
+class ReasoningDelta:
+    text: str
+
+
 class LLMProvider(Protocol):
     model_name: str
 
     async def generate(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> str:
         pass
 
-    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str]:
+    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str | ReasoningDelta]:
         pass
 
 
@@ -568,8 +573,11 @@ class StubLLMProvider:
         await asyncio.sleep(0.02)
         return "西医诊断：test\n主证：test\n兼证：test\n方药：test\n理由：test"
 
-    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str]:
+    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str | ReasoningDelta]:
         text = await self.generate(messages, thinking_level=thinking_level)
+        if thinking_level != "off":
+            # Synthetic content for the explicitly selected stub preview provider.
+            yield ReasoningDelta("test")
         for token in text:
             await asyncio.sleep(0.003)
             yield token
@@ -624,6 +632,10 @@ class OpenAICompatibleProvider:
         return headers
 
     async def generate(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> str:
+        content, _ = await self._generate_result(messages, thinking_level=thinking_level)
+        return content
+
+    async def _generate_result(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> tuple[str, str]:
         endpoint = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages=messages, stream=False, thinking_level=thinking_level)
         headers = self._build_headers()
@@ -634,15 +646,17 @@ class OpenAICompatibleProvider:
                 data = response.json()
 
         try:
-            content = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
+            content = message["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise RuntimeError(f"Invalid model response: {data}") from exc
 
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("Empty response from model provider")
-        return content.strip()
+        reasoning = message.get("reasoning_content", "")
+        return content.strip(), reasoning if isinstance(reasoning, str) else ""
 
-    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str]:
+    async def generate_stream(self, messages: list[ChatMessage], *, thinking_level: ThinkingLevel = "off") -> AsyncIterator[str | ReasoningDelta]:
         endpoint = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages=messages, stream=True, thinking_level=thinking_level)
         headers = self._build_headers()
@@ -668,10 +682,15 @@ class OpenAICompatibleProvider:
                             choices = chunk_json.get("choices") or []
                             if not choices:
                                 continue
-                            delta = choices[0].get("delta", {}).get("content", "")
-                            if isinstance(delta, str) and delta:
+                            delta = choices[0].get("delta") or {}
+                            reasoning = delta.get("reasoning_content", "")
+                            if isinstance(reasoning, str) and reasoning:
                                 emitted = True
-                                yield delta
+                                yield ReasoningDelta(reasoning)
+                            content = delta.get("content", "")
+                            if isinstance(content, str) and content:
+                                emitted = True
+                                yield content
         except httpx.HTTPStatusError:
             # Retrying authentication/quota errors would waste another request.
             raise
@@ -680,7 +699,9 @@ class OpenAICompatibleProvider:
                 # Do not append a second answer after a partially received stream.
                 raise
             logger.warning("Streaming is unavailable on provider side, fallback to non-stream response")
-            text = await self.generate(messages, thinking_level=thinking_level)
+            text, reasoning = await self._generate_result(messages, thinking_level=thinking_level)
+            if reasoning:
+                yield ReasoningDelta(reasoning)
             if text:
                 yield text
 
@@ -875,10 +896,16 @@ class ChatService:
             messages = [self._system_prompt, *base_history, user_message]
             start = time.perf_counter()
             chunks: list[str] = []
+            has_reasoning = False
 
             try:
                 async with self._semaphore:
                     async for delta in self._provider.generate_stream(messages, thinking_level=request.thinking_level):
+                        if isinstance(delta, ReasoningDelta):
+                            if delta.text:
+                                has_reasoning = True
+                                yield {"type": "reasoning", "delta": delta.text}
+                            continue
                         if not delta:
                             continue
                         chunks.append(delta)
@@ -891,6 +918,9 @@ class ChatService:
             latency_ms = int((time.perf_counter() - start) * 1000)
             raw_reply = "".join(chunks).strip()
             if not raw_reply:
+                if has_reasoning:
+                    yield {"type": "error", "detail": "模型未返回正文，请重试"}
+                    return
                 try:
                     async with self._semaphore:
                         raw_reply = await asyncio.wait_for(
@@ -994,6 +1024,10 @@ class FormAutofillService:
                             delta = await asyncio.wait_for(stream.__anext__(), timeout=remaining)
                         except StopAsyncIteration:
                             break
+                        if isinstance(delta, ReasoningDelta):
+                            if delta.text:
+                                yield {"type": "reasoning", "delta": delta.text}
+                            continue
                         raw_reply += delta
                         completed = _extract_complete_json_fields(raw_reply)
                         normalized = _normalize_form_autofill_data(completed, source_text)
@@ -1060,7 +1094,7 @@ form_autofill_service = FormAutofillService(
     max_concurrent_calls=settings.max_concurrent_model_calls,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.8.0")
+app = FastAPI(title="Hospital Intranet Chat System", version="0.9.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
