@@ -31,7 +31,7 @@
         <div class="docs-nav-group"><p>开始使用</p><a href="help.html?page=quick-start" data-page="quick-start" aria-current="page">快速开始</a></div>
         <div class="docs-nav-group"><p>诊疗工作台</p><a href="help.html?page=case-entry" data-page="case-entry">病历录入</a><a href="help.html?page=case-import" data-page="case-import">导入与示例病例</a><a href="help.html?page=diagnosis" data-page="diagnosis">诊断建议</a></div>
         <div class="docs-nav-group"><p>问诊</p><a href="help.html?page=dialogue" data-page="dialogue">问诊与思考</a></div>
-        <div class="docs-nav-group"><p>使用帮助</p><a href="help.html?page=faq" data-page="faq">常见问题与快捷键</a></div>
+        <div class="docs-nav-group"><p>使用帮助</p><a href="help.html?page=faq" data-page="faq">常见问题与快捷键</a><a href="help.html?page=changelog" data-page="changelog">版本更新</a></div>
       </nav>
     </aside>
     <main id="docContent" class="docs-main" tabindex="-1">
@@ -122,6 +122,30 @@
         <p>图片资料用于页面预览。将检查报告的文字结论填入“影像学/检验”，即可随病历一同分析。</p>
         <h2 id="shortcuts">快捷键</h2>
         <div class="doc-table-wrap"><table><thead><tr><th>操作</th><th>快捷键</th></tr></thead><tbody><tr><td>生成诊断建议</td><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td></tr><tr><td>发送问诊消息</td><td><kbd>Enter</kbd></td></tr><tr><td>消息换行</td><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td></tr><tr><td>保存展开编辑的字段</td><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td></tr><tr><td>切换已聚焦的标签</td><td><kbd>←</kbd> / <kbd>→</kbd></td></tr><tr><td>关闭弹窗</td><td><kbd>Esc</kbd></td></tr></tbody></table></div>
+      </article>
+      <article data-doc="changelog" hidden>
+        <h1>版本更新</h1>
+        <h2 id="release-2026-10-15">2026年10月15日</h2>
+        <ul>
+          <li><strong>帮助文档：</strong>新增使用指南、常见问题、快捷键与版本记录，支持目录切换和章节定位。</li>
+          <li><strong>独立问诊：</strong>采用居中输入布局，开始对话后输入框固定在底部；欢迎语改为“您好，有什么能帮助您”。</li>
+          <li><strong>页面文案：</strong>精简重复说明和提示，移除独立问诊页脚文字与回复耗时信息。</li>
+          <li><strong>字体排版：</strong>统一字体体系、正文与输入字号，调整标题字重和行距。</li>
+          <li><strong>输入体验：</strong>优化中文输入时的回车处理，保留 Enter 发送、Shift + Enter 换行。</li>
+        </ul>
+        <h2 id="release-2026-10-14">2026年10月14日</h2>
+        <ul>
+          <li><strong>诊疗工作台：</strong>更新为浅色青绿色界面，病历录入与诊断建议左右排列，常用办公窗口内可完整查看八项录入区。</li>
+          <li><strong>病历编辑：</strong>增加本次病历、复诊记录、图片资料标签，支持展开编辑长文本与自动保存草稿。</li>
+          <li><strong>模型与思考：</strong>接入 ChatECNU，默认使用 ecnu-max，提供关闭、中、高、超高四档思考强度。</li>
+          <li><strong>流式显示：</strong>诊断建议、病历识别、问诊助手和独立问诊逐步显示生成内容。</li>
+          <li><strong>病历导入：</strong>保留示例病例与载入示例入口，识别内容按字段显示并填入表单。</li>
+          <li><strong>结果操作：</strong>支持整份与单项复制；病历修改后标记为“需重新生成”。</li>
+        </ul>
+        <h2 id="release-2026-03-17">2026年3月17日</h2>
+        <ul><li>调整前端页面样式。</li></ul>
+        <h2 id="release-2026-03-10">2026年3月10日</h2>
+        <ul><li>加入结构化病历页面与独立对话页面，接入外部模型 API，并优化前端界面。</li></ul>
       </article>
       <footer class="doc-footer"><p>更新于 2026年10月15日</p><nav id="docPager" aria-label="相邻文档"></nav></footer>
     </main>
