@@ -44,6 +44,33 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         with self.mock_client(handler):
             self.assertEqual(await self.provider.generate(self.messages), 'connected')
 
+    async def test_complete_example_is_sent_only_to_diagnosis_routes(self):
+        example = json.loads((Path(app.__file__).parent / 'prompts' / 'diagnosis_example.json').read_text(encoding='utf-8'))
+        prompts = []
+        async def handler(request):
+            payload = json.loads(request.content)
+            prompts.append(payload['messages'][0]['content'])
+            content = '软件接口测试'
+            if payload.get('stream'):
+                return httpx.Response(200, text='data: '+json.dumps({'choices':[{'delta':{'content':content}}]})+'\n\ndata: [DONE]\n\n')
+            return httpx.Response(200, json={'choices':[{'message':{'content':content}}]})
+        with ExitStack() as stack:
+            for service in [app.diagnosis_service, app.dialogue_service, app.workspace_dialogue_service, app.form_autofill_service]:
+                stack.enter_context(patch.object(service, '_provider', self.provider))
+            stack.enter_context(self.mock_client(handler))
+            async with REAL_CLIENT(transport=httpx.ASGITransport(app=app.app), base_url='http://test') as client:
+                for route in ['/api/chat','/api/chat/stream','/api/dialogue/chat/stream','/api/workspace/chat/stream']:
+                    response = await client.post(route, json={'message':'软件接口测试','thinking_level':'off','use_server_history':False})
+                    self.assertEqual(response.status_code, 200)
+                response = await client.post('/api/form/autofill/stream', json={'source_text':'软件识别测试，不含患者资料','thinking_level':'off'})
+                self.assertEqual(response.status_code, 200)
+        for prompt in prompts[:2]:
+            self.assertIn(example['introduction'], prompt)
+            self.assertIn(example['output'], prompt)
+            self.assertIn('理由根据本次病历填写', prompt)
+        for prompt in prompts[2:]:
+            self.assertNotIn(example['output'], prompt)
+
     async def test_max_strength_parameters_and_sampling_defaults(self):
         self.provider.model_name = 'ecnu-max'
         for level in ['off', 'low', 'high', 'max']:

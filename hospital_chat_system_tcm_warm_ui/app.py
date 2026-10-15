@@ -707,16 +707,20 @@ class OpenAICompatibleProvider:
 
 
 def _load_example_text() -> tuple[str, str]:
-    example_path = Path(__file__).resolve().parent.parent / "example.json"
+    example_path = Path(__file__).resolve().parent / "prompts" / "diagnosis_example.json"
     if not example_path.exists():
         return "", ""
     try:
         data = json.loads(example_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return "", ""
-    instruction = str(data.get("instruction", ""))[:260]
-    output = str(data.get("output", ""))[:260]
-    return instruction, output
+    if not isinstance(data, dict):
+        return "", ""
+    introduction = data.get("introduction", "")
+    output = data.get("output", "")
+    if not isinstance(introduction, str) or not isinstance(output, str):
+        return "", ""
+    return introduction.strip(), output.strip()
 
 
 def _normalize_dialogue_output(raw_text: str) -> str:
@@ -754,9 +758,10 @@ def _build_workspace_dialogue_system_prompt() -> str:
 
 
 def _build_diagnosis_system_prompt() -> str:
-    return (
+    prompt = (
         "你是医院内网使用的颈椎病中医辅助诊疗助手。"
-        "你只能基于“当前这一次用户输入”的信息作答，禁止引用示例、禁止套用默认病例、禁止臆测。"
+        "你根据当前用户提交的病历进行诊断与辨证。"
+        "参考示例用于学习辨证和方药的表达方式，每次结论以本次病历为依据。"
         "你必须且只允许按以下格式输出，不得增加其它标题、前缀或结尾：\n"
         "西医诊断：...\n"
         "主证：...\n"
@@ -769,6 +774,14 @@ def _build_diagnosis_system_prompt() -> str:
         "理由必须明确写“信息不足，需补充xxx（缺失要点）”。"
         "不得因为经验或示例而给出确定性诊断。"
     )
+    introduction, output = _load_example_text()
+    if introduction and output:
+        prompt += (
+            f"\n\n参考示例：\nintroduction:\n{introduction}\n\noutput:\n{output}\n\n"
+            "回答当前病历时，仍按前述西医诊断、主证、兼证、方药、理由五项格式输出，"
+            "理由根据本次病历填写。"
+        )
+    return prompt
 
 
 def _build_openai_compat_provider(
@@ -1094,7 +1107,7 @@ form_autofill_service = FormAutofillService(
     max_concurrent_calls=settings.max_concurrent_model_calls,
 )
 
-app = FastAPI(title="Hospital Intranet Chat System", version="0.9.0")
+app = FastAPI(title="Hospital Intranet Chat System", version="0.9.1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
